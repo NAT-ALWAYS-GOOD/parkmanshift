@@ -1,0 +1,101 @@
+specification {
+    element person {
+        style { shape person }
+    }
+    element softwareSystem {
+        style { shape browser }
+    }
+    element container {
+        style { shape rectangle }
+    }
+    element webApp {
+        style { shape browser }
+    }
+    element database {
+        style { shape cylinder }
+    }
+    element messageBroker {
+        style { shape queue }
+    }
+    element externalSystem {
+        style { shape rectangle }
+    }
+}
+
+model {
+    employee = person "Employé" {
+        description "Souhaite réserver une place de parking par journée (max 5 réservations) et s'enregistrer (check-in)."
+    }
+    manager = person "Manager" {
+        description "A accès au dashboard des statistiques et peut avoir jusqu'à 30 réservations."
+    }
+    secretary = person "Secrétaire / Admin" {
+        description "Gère le support, l'administration de l'application, les utilisateurs et l'édition manuelle."
+    }
+
+    ssoSystem = externalSystem "Système SSO (Identity Provider)" {
+        description "Fournit l'authentification et l'autorisation des utilisateurs de l'entreprise."
+    }
+    notificationSystem = externalSystem "Service de Notification" {
+        description "Application externe tierce de l'entreprise gérant l'envoi asynchrone des e-mails."
+    }
+
+    parkingSystem = softwareSystem "ParkManShift" {
+        description "Système permettant de gérer, réserver et analyser l'occupation des 60 places de parking de l'entreprise."
+
+        webApp = webApp "Application Web (SPA)" {
+            technology "Vue.js, TypeScript"
+            description "Fournit l'interface utilisateur pour la gestion des réservations, le check-in, l'administration et le dashboard."
+        }
+
+        apiApp = container "API Backend" {
+            technology "Java, Spring Boot"
+            description "Gère la logique métier des réservations, les règles de vérification, un job temporisé à 11h de libération des places et l'historique."
+        }
+
+        database = database "Base de données relationnelle" {
+            technology "PostgreSQL"
+            description "Stocke les informations sur les utilisateurs, les places (numéro, type électrique/thermique) et l'historique exhaustif."
+        }
+
+        messageBroker = messageBroker "Message Broker" {
+            technology "RabbitMQ"
+            description "File d'attente permettant de découpler de manière asynchrone la création d'une réservation avec l'envoi de l'e-mail de confirmation."
+        }
+    }
+
+    // Personas -> System Context
+    employee -> parkingSystem "Consulte la disponibilité, réserve et s'enregistre"
+    manager -> parkingSystem "Consulte les statistiques et réserve"
+    secretary -> parkingSystem "Gère les profils utilisateurs et édite"
+
+    parkingSystem -> ssoSystem "Délègue l'authentification"
+    parkingSystem -> notificationSystem "Envoie des messages de demande de confirmation par e-mail"
+
+    // Interactions dans le système (Container View)
+    employee -> webApp "Accède à l'espace employé et scanne le QR code pour s'enregistrer"
+    manager -> webApp "Accède au dashboard d'administration et à l'espace global de réservation"
+    secretary -> webApp "Accède au back-office d'administration"
+
+    webApp -> ssoSystem "Redirige pour l'authentification"
+    ssoSystem -> webApp "Renvoie le jeton d'accès OAuth/OIDC"
+
+    webApp -> apiApp "Appelle les Endpoints d'API via JSON/HTTPS"
+
+    apiApp -> database "Lit et écrit les données"
+    apiApp -> messageBroker "Publie des événements métier via AMQP"
+
+    messageBroker -> notificationSystem "Délivre les messages via AMQP/Asynchrone"
+}
+
+views {
+    view index {
+        title "System Context: ParkManShift"
+        include *
+    }
+
+    view containers of parkingSystem {
+        title "Containers: ParkManShift"
+        include *
+    }
+}
