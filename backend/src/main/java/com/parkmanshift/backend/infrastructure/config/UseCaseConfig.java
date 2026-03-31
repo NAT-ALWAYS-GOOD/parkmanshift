@@ -33,19 +33,4 @@ public class UseCaseConfig {
             MessageProducerPort messageProducer) {
         return new ParkingService(spotRepository, reservationRepository, messageProducer);
     }
-
-    @Bean
-    public ReserveSpotUseCase reserveSpotUseCase(ParkingService parkingService) {
-        return parkingService;
-    }
-
-    @Bean
-    public ManageReservationUseCase manageReservationUseCase(ParkingService parkingService) {
-        return parkingService;
-    }
-
-    @Bean
-    public ViewParkingStateUseCase viewParkingStateUseCase(ParkingService parkingService) {
-        return parkingService;
-    }
 }

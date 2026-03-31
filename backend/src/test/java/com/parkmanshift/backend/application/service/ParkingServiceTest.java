@@ -41,7 +41,7 @@ public class ParkingServiceTest {
 
     @Test
     public void reserveSpot_WithLessThan5Active_AndSpotFree_ShouldSuccess() {
-        when(reservationRepository.findByEmployeeIdAndStatusIn(eq(EMP_ID), anyList())).thenReturn(Collections.emptyList());
+        when(reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(eq(EMP_ID), any(LocalDate.class), anyList())).thenReturn(Collections.emptyList());
         when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList())).thenReturn(Collections.emptyList());
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -55,7 +55,7 @@ public class ParkingServiceTest {
 
     @Test
     public void reserveSpot_ExceedingLimit_ShouldThrowException() {
-        when(reservationRepository.findByEmployeeIdAndStatusIn(eq(EMP_ID), anyList()))
+        when(reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(eq(EMP_ID), any(LocalDate.class), anyList()))
             .thenReturn(List.of(new Reservation(), new Reservation(), new Reservation(), new Reservation(), new Reservation()));
 
         assertThrows(ReservationLimitExceededException.class, () -> parkingService.reserveSpot("A01", EMP_ID, UserRole.EMPLOYEE, DATE));
@@ -63,7 +63,7 @@ public class ParkingServiceTest {
 
     @Test
     public void reserveSpot_AlreadyReserved_ShouldThrowException() {
-        when(reservationRepository.findByEmployeeIdAndStatusIn(eq(EMP_ID), anyList())).thenReturn(Collections.emptyList());
+        when(reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(eq(EMP_ID), any(LocalDate.class), anyList())).thenReturn(Collections.emptyList());
         when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList()))
             .thenReturn(List.of(new Reservation()));
 
@@ -75,7 +75,7 @@ public class ParkingServiceTest {
         List<Reservation> manyReservations = new java.util.ArrayList<>();
         for (int i = 0; i < 29; i++) manyReservations.add(new Reservation());
         
-        when(reservationRepository.findByEmployeeIdAndStatusIn(eq(EMP_ID), anyList())).thenReturn(manyReservations);
+        when(reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(eq(EMP_ID), any(LocalDate.class), anyList())).thenReturn(manyReservations);
         when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList())).thenReturn(Collections.emptyList());
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
 

@@ -1,5 +1,6 @@
 package com.parkmanshift.backend.infrastructure.web;
 
+import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
@@ -49,6 +50,9 @@ public class ParkingControllerTest {
 
     @Mock
     private ManageReservationUseCase manageReservationUseCase;
+
+    @Mock
+    private GetReservationHistoryUseCase getReservationHistoryUseCase;
 
     @Mock
     private Authentication mockAuthentication;
