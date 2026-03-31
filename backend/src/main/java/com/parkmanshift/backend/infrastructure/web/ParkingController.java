@@ -6,8 +6,11 @@ import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.domain.model.Reservation;
+import com.parkmanshift.backend.domain.model.UserRole;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -41,24 +44,41 @@ public class ParkingController {
     }
 
     @PostMapping("/reservations")
-    public ReservationDto reserveSpot(@RequestBody com.parkmanshift.api.model.ReserveRequestDto request) {
+    public ReservationDto reserveSpot(@RequestBody com.parkmanshift.api.model.ReserveRequestDto request, Authentication authentication) {
+        String username = authentication.getName();
+        UserRole role = getUserRole(authentication);
+        
         Reservation reservation = reserveSpotUseCase.reserveSpot(
                 request.getParkingSpotLabel(),
-                request.getEmployeeId(),
+                username, // Use authenticated username as employeeId
+                role,
                 request.getDate()
         );
         return ApiMapper.toDto(reservation);
     }
 
     @PostMapping("/reservations/{id}/checkin")
-    public ResponseEntity<Void> checkIn(@PathVariable UUID id, @RequestParam String employeeId) {
-        manageReservationUseCase.checkIn(id, employeeId);
+    public ResponseEntity<Void> checkIn(@PathVariable UUID id, Authentication authentication) {
+        String username = authentication.getName();
+        UserRole role = getUserRole(authentication);
+        manageReservationUseCase.checkIn(id, username, role);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/reservations/{id}")
-    public ResponseEntity<Void> cancelReservation(@PathVariable UUID id, @RequestParam String employeeId) {
-        manageReservationUseCase.cancelReservation(id, employeeId);
+    public ResponseEntity<Void> cancelReservation(@PathVariable UUID id, Authentication authentication) {
+        String username = authentication.getName();
+        UserRole role = getUserRole(authentication);
+        manageReservationUseCase.cancelReservation(id, username, role);
         return ResponseEntity.ok().build();
+    }
+
+    private UserRole getUserRole(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(auth -> auth.replace("ROLE_", ""))
+                .map(UserRole::valueOf)
+                .findFirst()
+                .orElse(UserRole.EMPLOYEE);
     }
 }

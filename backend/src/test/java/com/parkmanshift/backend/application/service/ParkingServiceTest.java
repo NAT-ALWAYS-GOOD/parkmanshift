@@ -45,7 +45,7 @@ public class ParkingServiceTest {
         when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList())).thenReturn(Collections.emptyList());
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
 
-        Reservation res = parkingService.reserveSpot("A01", EMP_ID, DATE);
+        Reservation res = parkingService.reserveSpot("A01", EMP_ID, UserRole.EMPLOYEE, DATE);
 
         assertNotNull(res);
         assertEquals("A01", res.getParkingSpotLabel());
@@ -58,7 +58,7 @@ public class ParkingServiceTest {
         when(reservationRepository.findByEmployeeIdAndStatusIn(eq(EMP_ID), anyList()))
             .thenReturn(List.of(new Reservation(), new Reservation(), new Reservation(), new Reservation(), new Reservation()));
 
-        assertThrows(ReservationLimitExceededException.class, () -> parkingService.reserveSpot("A01", EMP_ID, DATE));
+        assertThrows(ReservationLimitExceededException.class, () -> parkingService.reserveSpot("A01", EMP_ID, UserRole.EMPLOYEE, DATE));
     }
 
     @Test
@@ -67,7 +67,21 @@ public class ParkingServiceTest {
         when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList()))
             .thenReturn(List.of(new Reservation()));
 
-        assertThrows(SpotNotAvailableException.class, () -> parkingService.reserveSpot("A01", EMP_ID, DATE));
+        assertThrows(SpotNotAvailableException.class, () -> parkingService.reserveSpot("A01", EMP_ID, UserRole.EMPLOYEE, DATE));
+    }
+
+    @Test
+    public void reserveSpot_AsManager_With29Active_ShouldSuccess() {
+        List<Reservation> manyReservations = new java.util.ArrayList<>();
+        for (int i = 0; i < 29; i++) manyReservations.add(new Reservation());
+        
+        when(reservationRepository.findByEmployeeIdAndStatusIn(eq(EMP_ID), anyList())).thenReturn(manyReservations);
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList())).thenReturn(Collections.emptyList());
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Reservation res = parkingService.reserveSpot("A01", EMP_ID, UserRole.MANAGER, DATE);
+
+        assertNotNull(res);
     }
 
     @Test

@@ -9,11 +9,16 @@ servers:
 tags:
   - name: hello
     description: Walking skeleton endpoint
+  - name: auth
+    description: Authentification et gestion des utilisateurs
   - name: parking
     description: Gestion du parking
+security:
+  - BearerAuth: []
 paths:
   /api/hello:
     get:
+      security: []
       tags:
         - hello
       summary: Récupérer un message de salutation (walking skeleton)
@@ -26,6 +31,52 @@ paths:
               schema:
                 type: string
                 example: "Walking Skeleton"
+  /api/auth/login:
+    post:
+      security: []
+      tags:
+        - auth
+      summary: Se connecter pour obtenir un token JWT
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+  /api/auth/register-employee:
+    post:
+      tags:
+        - auth
+      summary: Enregistrer un nouvel employé (réservé aux secrétaires)
+      operationId: registerEmployee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationDto'
+      responses:
+        '200':
+          description: Utilisateur créé avec succès
   /api/parking/state:
     get:
       tags:
@@ -82,12 +133,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: employeeId
-          in: query
-          required: true
-          description: Identifiant de l'employé effectuant le check-in
-          schema:
-            type: string
       responses:
         '200':
           description: Check-in effectué avec succès
@@ -105,17 +150,16 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: employeeId
-          in: query
-          required: true
-          description: Identifiant de l'employé demandant l'annulation
-          schema:
-            type: string
       responses:
         '200':
           description: Annulation effectuée avec succès
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     SpotStateDto:
       type: object
@@ -153,18 +197,28 @@ components:
       type: object
       required:
         - parkingSpotLabel
-        - employeeId
         - date
       properties:
         parkingSpotLabel:
           type: string
           example: "P-01"
-        employeeId:
-          type: string
-          example: "EMP-1234"
         date:
           type: string
           format: date
+    UserRegistrationDto:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [EMPLOYEE, MANAGER, SECRETARY]
+          default: EMPLOYEE
     SpotStatusDto:
       type: string
       enum:

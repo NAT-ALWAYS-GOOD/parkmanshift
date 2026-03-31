@@ -1,20 +1,23 @@
 package com.parkmanshift.backend.infrastructure.config;
 
-import com.parkmanshift.backend.application.port.in.LogMessageUseCase;
-import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
-import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
-import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
-import com.parkmanshift.backend.application.port.out.MessageProducerPort;
-import com.parkmanshift.backend.application.port.out.ParkingSpotRepositoryPort;
-import com.parkmanshift.backend.application.port.out.ReservationRepositoryPort;
-import com.parkmanshift.backend.application.port.out.SkeletonLogRepositoryPort;
+import com.parkmanshift.backend.application.port.in.*;
+import com.parkmanshift.backend.application.port.out.*;
 import com.parkmanshift.backend.application.service.LogMessageService;
 import com.parkmanshift.backend.application.service.ParkingService;
+import com.parkmanshift.backend.application.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class UseCaseConfig {
+
+    @Bean
+    public CreateUserUseCase createUserUseCase(
+            UserRepositoryPort userRepository,
+            PasswordEncoder passwordEncoder) {
+        return new UserService(userRepository, passwordEncoder);
+    }
 
     @Bean
     public LogMessageUseCase logMessageUseCase(

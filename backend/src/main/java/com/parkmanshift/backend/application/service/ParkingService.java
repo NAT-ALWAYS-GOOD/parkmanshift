@@ -31,13 +31,14 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
     }
 
     @Override
-    public Reservation reserveSpot(String parkingSpotLabel, String employeeId, LocalDate date) {
-        // Enforce max 5 working days rule -> simplistic approach: just check active reservations
+    public Reservation reserveSpot(String parkingSpotLabel, String employeeId, UserRole userRole, LocalDate date) {
+        int limit = (userRole == UserRole.MANAGER) ? 30 : 5;
+
         List<Reservation> activeReservations = reservationRepository.findByEmployeeIdAndStatusIn(
                 employeeId, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
         );
-        if (activeReservations.size() >= 5) {
-            throw new ReservationLimitExceededException("Maximum 5 active reservations allowed.");
+        if (activeReservations.size() >= limit) {
+            throw new ReservationLimitExceededException("Maximum " + limit + " active reservations allowed.");
         }
 
         // Check if spot is free
@@ -57,12 +58,11 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
     }
 
     @Override
-    public void cancelReservation(UUID reservationId, String employeeId) {
+    public void cancelReservation(UUID reservationId, String employeeId, UserRole userRole) {
         Reservation res = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
 
-        if (!res.getEmployeeId().equals(employeeId)) {
-            // Ideally a custom exception, but generic is ok here for now
+        if (userRole != UserRole.SECRETARY && !res.getEmployeeId().equals(employeeId)) {
             throw new IllegalArgumentException("Not your reservation");
         }
 
@@ -71,11 +71,11 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
     }
 
     @Override
-    public void checkIn(UUID reservationId, String employeeId) {
+    public void checkIn(UUID reservationId, String employeeId, UserRole userRole) {
         Reservation res = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
 
-        if (!res.getEmployeeId().equals(employeeId)) {
+        if (userRole != UserRole.SECRETARY && !res.getEmployeeId().equals(employeeId)) {
             throw new IllegalArgumentException("Not your reservation");
         }
 

@@ -5,6 +5,7 @@ import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.domain.model.Reservation;
 import com.parkmanshift.backend.domain.model.ReservationStatus;
+import com.parkmanshift.backend.domain.model.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +21,9 @@ import java.util.Collections;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -57,11 +60,12 @@ public class ParkingControllerTest {
     @Test
     public void testReserveSpot() throws Exception {
         Reservation res = new Reservation(UUID.randomUUID(), "A01", "E123", LocalDate.of(2025, 5, 10), ReservationStatus.RESERVED);
-        when(reserveSpotUseCase.reserveSpot("A01", "E123", LocalDate.of(2025, 5, 10))).thenReturn(res);
+        when(reserveSpotUseCase.reserveSpot(eq("A01"), eq("E123"), eq(UserRole.EMPLOYEE), eq(LocalDate.of(2025, 5, 10)))).thenReturn(res);
 
-        String json = "{\"parkingSpotLabel\": \"A01\", \"employeeId\": \"E123\", \"date\": \"2025-05-10\"}";
+        String json = "{\"parkingSpotLabel\": \"A01\", \"date\": \"2025-05-10\"}";
 
         mockMvc.perform(post("/api/parking/reservations")
+                .with(user("E123").roles("EMPLOYEE"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isOk())
