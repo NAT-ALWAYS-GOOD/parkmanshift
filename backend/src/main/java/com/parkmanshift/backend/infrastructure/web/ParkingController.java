@@ -44,7 +44,8 @@ public class ParkingController {
     }
 
     @PostMapping("/reservations")
-    public ReservationDto reserveSpot(@RequestBody com.parkmanshift.api.model.ReserveRequestDto request, Authentication authentication) {
+    public ReservationDto reserveSpot(@RequestBody com.parkmanshift.api.model.ReserveRequestDto request, java.security.Principal principal) {
+        Authentication authentication = (Authentication) principal;
         String username = authentication.getName();
         UserRole role = getUserRole(authentication);
         
@@ -58,7 +59,8 @@ public class ParkingController {
     }
 
     @PostMapping("/reservations/{id}/checkin")
-    public ResponseEntity<Void> checkIn(@PathVariable UUID id, Authentication authentication) {
+    public ResponseEntity<Void> checkIn(@PathVariable UUID id, java.security.Principal principal) {
+        Authentication authentication = (Authentication) principal;
         String username = authentication.getName();
         UserRole role = getUserRole(authentication);
         manageReservationUseCase.checkIn(id, username, role);
@@ -66,7 +68,8 @@ public class ParkingController {
     }
 
     @DeleteMapping("/reservations/{id}")
-    public ResponseEntity<Void> cancelReservation(@PathVariable UUID id, Authentication authentication) {
+    public ResponseEntity<Void> cancelReservation(@PathVariable UUID id, java.security.Principal principal) {
+        Authentication authentication = (Authentication) principal;
         String username = authentication.getName();
         UserRole role = getUserRole(authentication);
         manageReservationUseCase.cancelReservation(id, username, role);

@@ -1,13 +1,16 @@
 package com.parkmanshift.backend.infrastructure.web;
 
+import com.parkmanshift.api.model.UserRegistrationDto;
 import com.parkmanshift.backend.application.port.in.CreateUserUseCase;
-import com.parkmanshift.backend.domain.model.User;
 import com.parkmanshift.backend.domain.model.UserRole;
 import com.parkmanshift.backend.infrastructure.security.JwtUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,11 +20,13 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
+    private final UserDetailsService userDetailsService;
     private final JwtUtils jwtUtils;
     private final CreateUserUseCase createUserUseCase;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, CreateUserUseCase createUserUseCase) {
+    public AuthController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtUtils jwtUtils, CreateUserUseCase createUserUseCase) {
         this.authenticationManager = authenticationManager;
+        this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.createUserUseCase = createUserUseCase;
     }
@@ -32,19 +37,26 @@ public class AuthController {
         String password = request.get("password");
 
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-        
-        String token = jwtUtils.generateToken(username);
-        return ResponseEntity.ok(Map.of("token", token));
+
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        final String jwt = jwtUtils.generateToken(userDetails.getUsername());
+
+        return ResponseEntity.ok(Map.of("token", jwt));
     }
 
     @PostMapping("/register-employee")
-    @PreAuthorize("hasRole('SECRETARY')")
-    public ResponseEntity<User> registerEmployee(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String password = request.get("password");
-        UserRole role = UserRole.valueOf(request.getOrDefault("role", "EMPLOYEE"));
+    public ResponseEntity<Void> registerEmployee(@RequestBody UserRegistrationDto registrationDto) {
+        createUserUseCase.createUser(
+                registrationDto.getUsername(),
+                registrationDto.getPassword(),
+                UserRole.valueOf(registrationDto.getRole().getValue())
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 
-        User user = createUserUseCase.createUser(username, password, role);
-        return ResponseEntity.ok(user);
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Invalid username or password"));
     }
 }
