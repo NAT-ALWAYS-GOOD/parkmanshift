@@ -1,4 +1,4 @@
-package com.parkmanshift.backend.config;
+package com.parkmanshift.backend.infrastructure.config;
 
 import org.springframework.amqp.core.*;
 import org.springframework.context.annotation.Bean;

@@ -1,18 +1,9 @@
-package com.parkmanshift.backend.entity;
+package com.parkmanshift.backend.domain.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import java.time.LocalDateTime;
 
-@Entity
 public class SkeletonLog {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String message;
     private LocalDateTime timestamp;
 
@@ -21,6 +12,12 @@ public class SkeletonLog {
     public SkeletonLog(String message) {
         this.message = message;
         this.timestamp = LocalDateTime.now();
+    }
+
+    public SkeletonLog(Long id, String message, LocalDateTime timestamp) {
+        this.id = id;
+        this.message = message;
+        this.timestamp = timestamp;
     }
 
     public Long getId() { return id; }
