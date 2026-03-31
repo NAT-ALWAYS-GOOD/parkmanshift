@@ -3,3 +3,5 @@
 # Fichiers de configuration locaux sensibles
 .env
 .vscode
+*.DS_Store
+backend/target
