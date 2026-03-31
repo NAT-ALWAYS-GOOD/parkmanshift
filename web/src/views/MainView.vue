@@ -3,11 +3,13 @@ import { ref, computed, watch, onMounted } from 'vue'
 import MonthCalendar from '../components/MonthCalendar.vue'
 import SpotGrid from '../components/SpotGrid.vue'
 import DrawerPanel from '../components/DrawerPanel.vue'
+import { useToast } from '../composables/useToast'
 import { api } from '../services/api'
 import { useAuth } from '../composables/useAuth'
 import type { Reservation, SpotState } from '../types'
 
 const { isAuthenticated } = useAuth()
+const { show: showToast } = useToast()
 
 // ── View toggle ──────────────────────────────────────────────
 type ViewMode = 'calendar' | 'list'
@@ -75,7 +77,6 @@ function openDay(date: string) {
   drawerOpen.value = true
   selectedSpotLabel.value = null
   submitError.value = ''
-  submitSuccess.value = ''
   actionError.value = ''
 }
 
@@ -104,22 +105,19 @@ watch(selectedDate, async (date) => {
 // ── Create booking ────────────────────────────────────────────
 const submitting = ref(false)
 const submitError = ref('')
-const submitSuccess = ref('')
 
 async function confirmBooking() {
   if (!selectedSpotLabel.value || !selectedDate.value) return
   submitting.value = true
   submitError.value = ''
-  submitSuccess.value = ''
   try {
     await api.reserveSpot({
       parkingSpotLabel: selectedSpotLabel.value,
       date: selectedDate.value,
     })
-    submitSuccess.value = `${selectedSpotLabel.value} booked for ${selectedDate.value}`
-    selectedSpotLabel.value = null
+    showToast(`${selectedSpotLabel.value} booked for ${selectedDate.value}`)
+    closeDrawer()
     await loadBookings()
-    spots.value = await api.getParkingState(selectedDate.value)
   } catch (e: any) {
     submitError.value = e.message
   } finally {
