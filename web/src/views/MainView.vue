@@ -4,10 +4,10 @@ import MonthCalendar from '../components/MonthCalendar.vue'
 import SpotGrid from '../components/SpotGrid.vue'
 import DrawerPanel from '../components/DrawerPanel.vue'
 import { api } from '../services/api'
-import { useEmployee } from '../composables/useEmployee'
+import { useAuth } from '../composables/useAuth'
 import type { Reservation, SpotState } from '../types'
 
-const { employeeId } = useEmployee()
+const { isAuthenticated } = useAuth()
 
 // ── View toggle ──────────────────────────────────────────────
 type ViewMode = 'calendar' | 'list'
@@ -19,7 +19,7 @@ const loadingBookings = ref(false)
 const bookingError = ref('')
 
 async function loadBookings() {
-  if (!employeeId.value) return
+  if (!isAuthenticated.value) return
   loadingBookings.value = true
   bookingError.value = ''
   try {
@@ -31,7 +31,7 @@ async function loadBookings() {
   }
 }
 
-watch(employeeId, loadBookings)
+watch(isAuthenticated, loadBookings)
 onMounted(loadBookings)
 
 // ── Calendar navigation ───────────────────────────────────────
@@ -107,14 +107,13 @@ const submitError = ref('')
 const submitSuccess = ref('')
 
 async function confirmBooking() {
-  if (!selectedSpotLabel.value || !employeeId.value || !selectedDate.value) return
+  if (!selectedSpotLabel.value || !selectedDate.value) return
   submitting.value = true
   submitError.value = ''
   submitSuccess.value = ''
   try {
     await api.reserveSpot({
       parkingSpotLabel: selectedSpotLabel.value,
-      employeeId: employeeId.value,
       date: selectedDate.value,
     })
     submitSuccess.value = `${selectedSpotLabel.value} booked for ${selectedDate.value}`
@@ -134,7 +133,7 @@ const actionError = ref('')
 async function checkIn(reservation: Reservation) {
   actionError.value = ''
   try {
-    await api.checkIn(reservation.id, employeeId.value)
+    await api.checkIn(reservation.id)
     const idx = bookings.value.findIndex(b => b.id === reservation.id)
     if (idx !== -1) bookings.value[idx] = { ...bookings.value[idx], status: 'OCCUPIED' }
   } catch (e: any) {
@@ -146,7 +145,7 @@ async function cancelBooking(reservation: Reservation) {
   if (!confirm(`Cancel booking for ${reservation.parkingSpotLabel} on ${reservation.date}?`)) return
   actionError.value = ''
   try {
-    await api.cancelReservation(reservation.id, employeeId.value)
+    await api.cancelReservation(reservation.id)
     const idx = bookings.value.findIndex(b => b.id === reservation.id)
     if (idx !== -1) bookings.value[idx] = { ...bookings.value[idx], status: 'CANCELLED' }
     closeDrawer()
@@ -180,11 +179,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 <template>
   <div class="page">
-    <div v-if="!employeeId" class="notice">
-      Set your employee ID in the top-right corner to get started.
-    </div>
-
-    <template v-else>
+    <template v-if="isAuthenticated">
       <!-- Toggle -->
       <div class="toolbar">
         <div class="toggle-group">

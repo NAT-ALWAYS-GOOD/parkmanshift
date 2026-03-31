@@ -28,6 +28,15 @@ defineEmits<{ (e: 'close'): void }>()
   z-index: 40;
 }
 
+.backdrop-enter-active,
+.backdrop-leave-active {
+  transition: opacity 0.2s ease;
+}
+.backdrop-enter-from,
+.backdrop-leave-to {
+  opacity: 0;
+}
+
 .drawer {
   position: fixed;
   top: 0;
@@ -42,6 +51,10 @@ defineEmits<{ (e: 'close'): void }>()
   transform: translateX(100%);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+}
+
+.drawer--open {
+  transform: translateX(0);
 }
 
 @media (max-width: 768px) {

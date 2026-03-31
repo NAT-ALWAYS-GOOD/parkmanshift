@@ -24,6 +24,5 @@ export interface Reservation {
 
 export interface ReserveRequest {
   parkingSpotLabel: string
-  employeeId: string
   date: string
 }

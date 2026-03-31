@@ -184,8 +184,101 @@ function handleClick(row: string, col: number) {
   .spot-ev-icon { font-size: 9px; }
 }
 
+.spot {
+  width: 26px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 9px;
+  font-family: var(--mono);
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--code-bg);
+  color: var(--text-h);
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+@media (min-width: 480px) {
+  .spot { width: 30px; height: 32px; font-size: 10px; border-radius: 4px; }
+}
+
+@media (min-width: 768px) {
+  .spot { width: 36px; height: 38px; font-size: 11px; border-radius: 5px; }
+}
+
+.spot--available {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+}
+.spot--available:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.spot--taken {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  cursor: not-allowed;
+}
+
+.spot--disabled {
+  background: var(--code-bg);
+  border-color: var(--border);
+  color: var(--text);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.spot--selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(170, 59, 255, 0.4);
+}
+
+.spot--loading {
+  background: var(--code-bg);
+  border-color: var(--border);
+  color: transparent;
+  cursor: default;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.spot--unknown {
+  background: var(--code-bg);
+  border-color: var(--border);
+  color: var(--text);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 0.4; }
   50%       { opacity: 0.8; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .spot--available {
+    background: #14532d;
+    border-color: #166534;
+    color: #86efac;
+  }
+  .spot--taken {
+    background: #450a0a;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+  }
 }
 </style>

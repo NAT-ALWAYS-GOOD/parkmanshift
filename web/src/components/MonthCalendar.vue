@@ -180,6 +180,53 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
   }
 }
 
+.cell--empty {
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+.cell--past {
+  background: var(--code-bg);
+  opacity: 0.5;
+}
+
+.cell--free {
+  background: var(--bg);
+  border-color: var(--border);
+  cursor: pointer;
+}
+
+.cell--free:hover {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+.cell--today {
+  border-color: var(--accent) !important;
+}
+
+.cell--selected {
+  box-shadow: 0 0 0 2px var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.cell--reserved {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  cursor: pointer;
+}
+
+.cell--reserved:hover {
+  box-shadow: 0 0 0 2px var(--accent-border);
+}
+
+.cell--occupied {
+  background: #dcfce7;
+  border-color: #86efac;
+  cursor: pointer;
+}
+
 .day-num {
   font-size: 11px;
   font-weight: 600;
@@ -238,6 +285,10 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
 }
 
 @media (prefers-color-scheme: dark) {
+  .cell--occupied {
+    background: #14532d;
+    border-color: #166534;
+  }
   .cell--occupied .day-spot {
     color: #86efac;
     background: #14532d;
