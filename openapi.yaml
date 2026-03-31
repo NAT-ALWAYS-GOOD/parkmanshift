@@ -119,6 +119,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationDto'
+  /api/parking/reservations/history:
+    get:
+      tags:
+        - parking
+      summary: Récupérer l'historique des réservations d'un employé
+      description: Les employés ne peuvent consulter que leur propre historique. Les secrétaires et managers peuvent consulter n'importe quel historique en passant l'ID de l'employé.
+      operationId: getReservationHistory
+      parameters:
+        - name: employeeId
+          in: query
+          description: ID de l'employé dont on veut l'historique (optionnel pour l'utilisateur courant)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationDto'
   /api/parking/reservations/{id}/checkin:
     post:
       tags:

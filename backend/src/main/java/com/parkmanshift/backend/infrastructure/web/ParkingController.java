@@ -2,6 +2,7 @@ package com.parkmanshift.backend.infrastructure.web;
 
 import com.parkmanshift.api.model.ReservationDto;
 import com.parkmanshift.api.model.SpotStateDto;
+import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
@@ -24,11 +25,13 @@ public class ParkingController {
     private final ViewParkingStateUseCase viewParkingStateUseCase;
     private final ReserveSpotUseCase reserveSpotUseCase;
     private final ManageReservationUseCase manageReservationUseCase;
+    private final GetReservationHistoryUseCase getReservationHistoryUseCase;
 
-    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase) {
+    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase, GetReservationHistoryUseCase getReservationHistoryUseCase) {
         this.viewParkingStateUseCase = viewParkingStateUseCase;
         this.reserveSpotUseCase = reserveSpotUseCase;
         this.manageReservationUseCase = manageReservationUseCase;
+        this.getReservationHistoryUseCase = getReservationHistoryUseCase;
     }
 
     @GetMapping("/state")
@@ -56,6 +59,22 @@ public class ParkingController {
                 request.getDate()
         );
         return ApiMapper.toDto(reservation);
+    }
+
+    @GetMapping("/reservations/history")
+    public List<ReservationDto> getHistory(
+            @RequestParam(required = false) String employeeId,
+            java.security.Principal principal) {
+        Authentication authentication = (Authentication) principal;
+        String username = authentication.getName();
+        UserRole role = getUserRole(authentication);
+
+        String targetId = (employeeId != null) ? employeeId : username;
+
+        return getReservationHistoryUseCase.getHistory(targetId, username, role)
+                .stream()
+                .map(ApiMapper::toDto)
+                .toList();
     }
 
     @PostMapping("/reservations/{id}/checkin")

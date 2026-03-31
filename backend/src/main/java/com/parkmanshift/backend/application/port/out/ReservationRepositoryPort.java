@@ -11,6 +11,8 @@ public interface ReservationRepositoryPort {
     Reservation save(Reservation reservation);
     Optional<Reservation> findById(UUID id);
     List<Reservation> findByDate(LocalDate date);
+    List<Reservation> findByEmployeeId(String employeeId);
     List<Reservation> findByEmployeeIdAndStatusIn(String employeeId, List<ReservationStatus> statuses);
+    List<Reservation> findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(String employeeId, LocalDate date, List<ReservationStatus> statuses);
     List<Reservation> findByParkingSpotLabelAndDateAndStatusIn(String label, LocalDate date, List<ReservationStatus> statuses);
 }

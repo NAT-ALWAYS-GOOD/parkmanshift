@@ -1,5 +1,6 @@
 package com.parkmanshift.backend.application.service;
 
+import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
@@ -18,7 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase {
+public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase {
 
     private final ParkingSpotRepositoryPort spotRepository;
     private final ReservationRepositoryPort reservationRepository;
@@ -33,12 +34,13 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
     @Override
     public Reservation reserveSpot(String parkingSpotLabel, String employeeId, UserRole userRole, LocalDate date) {
         int limit = (userRole == UserRole.MANAGER) ? 30 : 5;
+        LocalDate today = LocalDate.now();
 
-        List<Reservation> activeReservations = reservationRepository.findByEmployeeIdAndStatusIn(
-                employeeId, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+        List<Reservation> activeReservations = reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(
+                employeeId, today, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
         );
         if (activeReservations.size() >= limit) {
-            throw new ReservationLimitExceededException("Maximum " + limit + " active reservations allowed.");
+            throw new ReservationLimitExceededException("Maximum " + limit + " active/future reservations allowed.");
         }
 
         // Check if spot is free
@@ -112,5 +114,15 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
         }
 
         return states;
+    }
+
+    @Override
+    public List<Reservation> getHistory(String targetEmployeeId, String requesterId, UserRole requesterRole) {
+        if (requesterRole != UserRole.SECRETARY && requesterRole != UserRole.MANAGER && !targetEmployeeId.equals(requesterId)) {
+            throw new IllegalArgumentException("Access denied to this history");
+        }
+        return reservationRepository.findByEmployeeId(targetEmployeeId).stream()
+                .sorted((r1, r2) -> r2.getDate().compareTo(r1.getDate()))
+                .collect(Collectors.toList());
     }
 }
