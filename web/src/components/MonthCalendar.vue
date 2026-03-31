@@ -214,6 +214,7 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
 .cell--reserved {
   background: var(--accent-bg);
   border-color: var(--accent-border);
+  border-left: 3px solid var(--accent);
   cursor: pointer;
 }
 
@@ -224,8 +225,10 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
 .cell--occupied {
   background: #dcfce7;
   border-color: #86efac;
+  border-left: 3px solid #16a34a;
   cursor: pointer;
 }
+
 
 .day-num {
   font-size: 11px;
@@ -243,23 +246,24 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
 }
 
 .day-spot {
-  display: none;
+  display: block;
+  font-size: 8px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 1px 3px;
+  width: fit-content;
+  overflow: hidden;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 @media (min-width: 380px) {
   .day-spot {
-    display: block;
     font-size: 9px;
-    font-family: var(--mono);
-    font-weight: 500;
-    color: var(--accent);
     background: var(--accent-bg);
-    border-radius: 3px;
     padding: 1px 3px;
-    width: fit-content;
-    overflow: hidden;
-    max-width: 100%;
-    white-space: nowrap;
   }
 }
 
@@ -288,6 +292,7 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
   .cell--occupied {
     background: #14532d;
     border-color: #166534;
+    border-left-color: #22c55e;
   }
   .cell--occupied .day-spot {
     color: #86efac;

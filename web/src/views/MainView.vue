@@ -386,6 +386,18 @@ const STATUS_LABEL: Record<string, string> = {
   transition: background 0.15s, color 0.15s;
 }
 
+.toggle-btn--active {
+  background: var(--bg);
+  color: var(--text-h);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-btn:not(.toggle-btn--active):hover {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
 /* ── Calendar ── */
 .cal-section {
   display: flex;

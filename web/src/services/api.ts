@@ -29,9 +29,9 @@ export const api = {
     return request(`/api/parking/state${query}`)
   },
 
-  // GET /api/parking/state
+  // GET /api/parking/reservations/history
   getReservations(): Promise<Reservation[]> {
-    return request(`/api/parking/state`)
+    return request(`/api/parking/reservations/history`)
   },
 
   // POST /api/parking/reservations
