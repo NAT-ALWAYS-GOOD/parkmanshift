@@ -2,13 +2,20 @@ openapi: 3.0.3
 info:
   title: Parkmanshift API
   version: 1.0.0
-  description: Spécification de l'API pour le backend Parkmanshift.
+  description: Spécification de l'API pour le backend Parkmanshift — contrat d'interface partagé backend/web.
 servers:
   - url: http://localhost:8080
     description: Serveur local par défaut
+tags:
+  - name: hello
+    description: Walking skeleton endpoint
+  - name: parking
+    description: Gestion du parking
 paths:
   /api/hello:
     get:
+      tags:
+        - hello
       summary: Récupérer un message de salutation (walking skeleton)
       operationId: hello
       responses:
@@ -21,6 +28,8 @@ paths:
                 example: "Walking Skeleton"
   /api/parking/state:
     get:
+      tags:
+        - parking
       summary: Récupérer l'état des places de parking
       operationId: getParkingState
       parameters:
@@ -39,9 +48,11 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/SpotState'
+                  $ref: '#/components/schemas/SpotStateDto'
   /api/parking/reservations:
     post:
+      tags:
+        - parking
       summary: Réserver une place de parking
       operationId: reserveSpot
       requestBody:
@@ -49,16 +60,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReserveRequest'
+              $ref: '#/components/schemas/ReserveRequestDto'
       responses:
         '200':
           description: Réservation créée avec succès
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Reservation'
+                $ref: '#/components/schemas/ReservationDto'
   /api/parking/reservations/{id}/checkin:
     post:
+      tags:
+        - parking
       summary: Signaler l'arrivée (check-in) pour une réservation
       operationId: checkIn
       parameters:
@@ -80,6 +93,8 @@ paths:
           description: Check-in effectué avec succès
   /api/parking/reservations/{id}:
     delete:
+      tags:
+        - parking
       summary: Annuler une réservation
       operationId: cancelReservation
       parameters:
@@ -102,22 +117,22 @@ paths:
 
 components:
   schemas:
-    SpotState:
+    SpotStateDto:
       type: object
       properties:
         spot:
-          $ref: '#/components/schemas/ParkingSpot'
+          $ref: '#/components/schemas/ParkingSpotDto'
         status:
-          $ref: '#/components/schemas/SpotStatus'
-    ParkingSpot:
+          $ref: '#/components/schemas/SpotStatusDto'
+    ParkingSpotDto:
       type: object
       properties:
         label:
           type: string
           example: "P-01"
         type:
-          $ref: '#/components/schemas/SpotType'
-    Reservation:
+          $ref: '#/components/schemas/SpotTypeDto'
+    ReservationDto:
       type: object
       properties:
         id:
@@ -133,8 +148,8 @@ components:
           type: string
           format: date
         status:
-          $ref: '#/components/schemas/ReservationStatus'
-    ReserveRequest:
+          $ref: '#/components/schemas/ReservationStatusDto'
+    ReserveRequestDto:
       type: object
       required:
         - parkingSpotLabel
@@ -150,19 +165,19 @@ components:
         date:
           type: string
           format: date
-    SpotStatus:
+    SpotStatusDto:
       type: string
       enum:
         - FREE
         - RESERVED
         - OCCUPIED
         - UNAVAILABLE
-    SpotType:
+    SpotTypeDto:
       type: string
       enum:
         - ELECTRIC
         - THERMAL
-    ReservationStatus:
+    ReservationStatusDto:
       type: string
       enum:
         - RESERVED

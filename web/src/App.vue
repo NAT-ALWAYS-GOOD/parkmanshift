@@ -6,8 +6,7 @@ const message = ref('En attente du backend...')
 onMounted(async () => {
   try {
     const res = await fetch('/api/hello')
-    const data = await res.json()
-    message.value = data.message
+    message.value = await res.text()
   } catch (e) {
     message.value = 'Erreur de connexion au backend !'
   }

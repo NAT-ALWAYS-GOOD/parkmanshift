@@ -5,4 +5,7 @@
 .vscode
 *.DS_Store
 backend/target
-backend/target
+
+# OpenAPI generated code
+web/src/api/generated
+web/node_modules

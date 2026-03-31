@@ -35,7 +35,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: parkmanshift_api
     ports:
       - "8080:8080"
@@ -55,7 +56,8 @@ services:
 
   web:
     build:
-      context: ./web
+      context: .
+      dockerfile: web/Dockerfile
     container_name: parkmanshift_web
     ports:
       - "80:80"

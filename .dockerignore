@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+.env
+*.DS_Store
+docs
+backend/target
+web/node_modules
+web/dist
+web/src/api/generated
