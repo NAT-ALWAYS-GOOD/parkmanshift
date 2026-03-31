@@ -8,8 +8,11 @@ import { api } from '../services/api'
 import { useAuth } from '../composables/useAuth'
 import type { Reservation, SpotState } from '../types'
 
-const { isAuthenticated } = useAuth()
 const { show: showToast } = useToast()
+
+const { isAuthenticated, hasRole } = useAuth()
+const isSecretary = computed(() => hasRole('SECRETARY'))
+const isManager = computed(() => hasRole('MANAGER'))
 
 // ── View toggle ──────────────────────────────────────────────
 type ViewMode = 'calendar' | 'list'
@@ -76,6 +79,8 @@ function openDay(date: string) {
   selectedDate.value = date
   drawerOpen.value = true
   selectedSpotLabel.value = null
+  targetUsername.value = ''
+  bookingForOther.value = false
   submitError.value = ''
   actionError.value = ''
 }
@@ -89,6 +94,8 @@ function closeDrawer() {
 const spots = ref<SpotState[]>([])
 const loadingSpots = ref(false)
 const selectedSpotLabel = ref<string | null>(null)
+const bookingForOther = ref(false)
+const targetUsername = ref('')
 
 watch(selectedDate, async (date) => {
   spots.value = []
@@ -108,14 +115,18 @@ const submitError = ref('')
 
 async function confirmBooking() {
   if (!selectedSpotLabel.value || !selectedDate.value) return
+  if (bookingForOther.value && !targetUsername.value.trim()) return
   submitting.value = true
   submitError.value = ''
   try {
+    const target = bookingForOther.value ? targetUsername.value.trim() : undefined
     await api.reserveSpot({
       parkingSpotLabel: selectedSpotLabel.value,
       date: selectedDate.value,
+      ...(target && { targetUsername: target }),
     })
-    showToast(`${selectedSpotLabel.value} booked for ${selectedDate.value}`)
+    const label = target ? `${selectedSpotLabel.value} booked for ${target}` : `${selectedSpotLabel.value} booked for ${selectedDate.value}`
+    showToast(label)
     closeDrawer()
     await loadBookings()
   } catch (e: any) {
@@ -166,6 +177,11 @@ const history = computed(() =>
   bookings.value.filter(
     b => b.date < today || b.status === 'CANCELLED'
   )
+)
+
+const bookingLimit = computed(() => isManager.value ? 30 : 5)
+const bookingLimitReached = computed(() =>
+  !bookingForOther.value && upcoming.value.length >= bookingLimit.value
 )
 
 const STATUS_LABEL: Record<string, string> = {
@@ -306,21 +322,44 @@ const STATUS_LABEL: Record<string, string> = {
 
     <!-- Free future day -->
     <template v-else-if="isFutureOrToday">
-      <p class="drawer-hint">Select a spot to book for this day.</p>
-      <SpotGrid
-        :spots="spots"
-        :selected-spot-label="selectedSpotLabel"
-        :loading="loadingSpots"
-        @select="selectedSpotLabel = $event"
-      />
-      <div v-if="submitError" class="alert alert--error">{{ submitError }}</div>
-      <div v-if="submitSuccess" class="alert alert--success">{{ submitSuccess }}</div>
-      <div v-if="selectedSpotLabel" class="confirm-row">
-        <span class="confirm-label">Spot <strong>{{ selectedSpotLabel }}</strong> selected</span>
-        <button class="btn btn--primary" :disabled="submitting" @click="confirmBooking">
-          {{ submitting ? 'Booking…' : 'Confirm' }}
-        </button>
-      </div>
+      <template v-if="bookingLimitReached">
+        <div class="alert alert--warning">
+          You've reached the {{ bookingLimit }}-booking limit. Cancel an existing reservation to book a new one.
+        </div>
+      </template>
+      <template v-else>
+        <div v-if="isSecretary" class="for-other-row">
+          <label class="for-other-label">
+            <input type="checkbox" v-model="bookingForOther" />
+            Book for someone else
+          </label>
+          <input
+            v-if="bookingForOther"
+            v-model="targetUsername"
+            class="for-other-input"
+            placeholder="Username"
+            autocomplete="off"
+          />
+        </div>
+        <p class="drawer-hint">Select a spot to book for this day.</p>
+        <SpotGrid
+          :spots="spots"
+          :selected-spot-label="selectedSpotLabel"
+          :loading="loadingSpots"
+          @select="selectedSpotLabel = $event"
+        />
+        <div v-if="submitError" class="alert alert--error">{{ submitError }}</div>
+        <div v-if="selectedSpotLabel" class="confirm-row">
+          <span class="confirm-label">Spot <strong>{{ selectedSpotLabel }}</strong> selected</span>
+          <button
+            class="btn btn--primary"
+            :disabled="submitting || (bookingForOther && !targetUsername.trim())"
+            @click="confirmBooking"
+          >
+            {{ submitting ? 'Booking…' : 'Confirm' }}
+          </button>
+        </div>
+      </template>
     </template>
 
     <!-- Past day, no booking -->
@@ -457,6 +496,42 @@ const STATUS_LABEL: Record<string, string> = {
   flex-wrap: wrap;
 }
 
+.for-other-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+}
+
+.for-other-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
+  user-select: none;
+}
+
+.for-other-input {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.for-other-input:focus {
+  border-color: var(--accent);
+}
+
 .confirm-row {
   display: flex;
   align-items: center;
@@ -482,10 +557,12 @@ const STATUS_LABEL: Record<string, string> = {
 
 .alert--error   { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .alert--success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.alert--warning { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
 
 @media (prefers-color-scheme: dark) {
   .alert--error   { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
   .alert--success { background: #14532d; color: #86efac; border-color: #166534; }
+  .alert--warning { background: #422006; color: #fde047; border-color: #854d0e; }
 }
 
 .loading {

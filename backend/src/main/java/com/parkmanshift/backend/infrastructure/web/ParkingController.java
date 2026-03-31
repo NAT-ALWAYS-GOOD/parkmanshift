@@ -52,9 +52,13 @@ public class ParkingController {
         String username = authentication.getName();
         UserRole role = getUserRole(authentication);
         
+        String targetEmployee = (role == UserRole.SECRETARY && request.getTargetUsername() != null)
+                ? request.getTargetUsername()
+                : username;
+
         Reservation reservation = reserveSpotUseCase.reserveSpot(
                 request.getParkingSpotLabel(),
-                username, // Use authenticated username as employeeId
+                targetEmployee,
                 role,
                 request.getDate()
         );

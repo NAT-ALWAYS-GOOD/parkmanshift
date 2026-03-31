@@ -228,6 +228,9 @@ components:
         date:
           type: string
           format: date
+        targetUsername:
+          type: string
+          description: Réserver pour un autre employé (réservé aux secrétaires)
     UserRegistrationDto:
       type: object
       required:

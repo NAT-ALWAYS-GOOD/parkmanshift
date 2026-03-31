@@ -25,4 +25,5 @@ export interface Reservation {
 export interface ReserveRequest {
   parkingSpotLabel: string
   date: string
+  targetUsername?: string
 }
