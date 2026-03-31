@@ -1,0 +1,65 @@
+INSERT INTO parking_spot (label, type) VALUES ('A01', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A02', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A03', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A04', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A05', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A06', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A07', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A08', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A09', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('A10', 'ELECTRIC');
+
+INSERT INTO parking_spot (label, type) VALUES ('B01', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B02', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B03', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B04', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B05', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B06', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B07', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B08', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B09', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('B10', 'THERMAL');
+
+INSERT INTO parking_spot (label, type) VALUES ('C01', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C02', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C03', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C04', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C05', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C06', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C07', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C08', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C09', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('C10', 'THERMAL');
+
+INSERT INTO parking_spot (label, type) VALUES ('D01', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D02', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D03', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D04', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D05', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D06', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D07', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D08', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D09', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('D10', 'THERMAL');
+
+INSERT INTO parking_spot (label, type) VALUES ('E01', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E02', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E03', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E04', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E05', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E06', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E07', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E08', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E09', 'THERMAL');
+INSERT INTO parking_spot (label, type) VALUES ('E10', 'THERMAL');
+
+INSERT INTO parking_spot (label, type) VALUES ('F01', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F02', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F03', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F04', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F05', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F06', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F07', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F08', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F09', 'ELECTRIC');
+INSERT INTO parking_spot (label, type) VALUES ('F10', 'ELECTRIC');
