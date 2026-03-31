@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: Parkmanshift API
+  version: 1.0.0
+  description: Spécification de l'API pour le backend Parkmanshift.
+servers:
+  - url: http://localhost:8080
+    description: Serveur local par défaut
+paths:
+  /api/hello:
+    get:
+      summary: Récupérer un message de salutation (walking skeleton)
+      operationId: hello
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Walking Skeleton"
+  /api/parking/state:
+    get:
+      summary: Récupérer l'état des places de parking
+      operationId: getParkingState
+      parameters:
+        - name: date
+          in: query
+          description: Date pour laquelle récupérer l'état (par défaut la date du jour si omis)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpotState'
+  /api/parking/reservations:
+    post:
+      summary: Réserver une place de parking
+      operationId: reserveSpot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveRequest'
+      responses:
+        '200':
+          description: Réservation créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+  /api/parking/reservations/{id}/checkin:
+    post:
+      summary: Signaler l'arrivée (check-in) pour une réservation
+      operationId: checkIn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID (UUID) de la réservation
+          schema:
+            type: string
+            format: uuid
+        - name: employeeId
+          in: query
+          required: true
+          description: Identifiant de l'employé effectuant le check-in
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check-in effectué avec succès
+  /api/parking/reservations/{id}:
+    delete:
+      summary: Annuler une réservation
+      operationId: cancelReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID (UUID) de la réservation à annuler
+          schema:
+            type: string
+            format: uuid
+        - name: employeeId
+          in: query
+          required: true
+          description: Identifiant de l'employé demandant l'annulation
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Annulation effectuée avec succès
+
+components:
+  schemas:
+    SpotState:
+      type: object
+      properties:
+        spot:
+          $ref: '#/components/schemas/ParkingSpot'
+        status:
+          $ref: '#/components/schemas/SpotStatus'
+    ParkingSpot:
+      type: object
+      properties:
+        label:
+          type: string
+          example: "P-01"
+        type:
+          $ref: '#/components/schemas/SpotType'
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        parkingSpotLabel:
+          type: string
+          example: "P-01"
+        employeeId:
+          type: string
+          example: "EMP-1234"
+        date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+    ReserveRequest:
+      type: object
+      required:
+        - parkingSpotLabel
+        - employeeId
+        - date
+      properties:
+        parkingSpotLabel:
+          type: string
+          example: "P-01"
+        employeeId:
+          type: string
+          example: "EMP-1234"
+        date:
+          type: string
+          format: date
+    SpotStatus:
+      type: string
+      enum:
+        - FREE
+        - RESERVED
+        - OCCUPIED
+        - UNAVAILABLE
+    SpotType:
+      type: string
+      enum:
+        - ELECTRIC
+        - THERMAL
+    ReservationStatus:
+      type: string
+      enum:
+        - RESERVED
+        - OCCUPIED
+        - CANCELLED
