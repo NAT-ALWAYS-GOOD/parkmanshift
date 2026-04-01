@@ -65,4 +65,13 @@ export const api = {
     const qs = params.toString() ? `?${params.toString()}` : ''
     return request(`/api/parking/dashboard${qs}`)
   },
+
+  // PUT /api/parking/reservations/{id}
+  updateReservation(id: string, body: ReserveRequest): Promise<Reservation> {
+    return request(`/api/parking/reservations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  },
 }

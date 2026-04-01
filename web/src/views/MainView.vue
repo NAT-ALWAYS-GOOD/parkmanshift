@@ -59,6 +59,7 @@ function nextMonth() {
 const today = new Date().toISOString().slice(0, 10)
 const selectedDate = ref<string | null>(null)
 const drawerOpen = ref(false)
+const isEditing = ref(false)
 
 const bookingByDate = computed(() => {
   const map: Record<string, Reservation> = {}
@@ -79,6 +80,7 @@ const isFutureOrToday = computed(() =>
 function openDay(date: string) {
   selectedDate.value = date
   drawerOpen.value = true
+  isEditing.value = false
   selectedSpotLabel.value = null
   targetUsername.value = ''
   bookingForOther.value = false
@@ -89,6 +91,7 @@ function openDay(date: string) {
 function closeDrawer() {
   drawerOpen.value = false
   selectedDate.value = null
+  isEditing.value = false
 }
 
 // ── Spot availability ─────────────────────────────────────────
@@ -101,7 +104,8 @@ const targetUsername = ref('')
 watch(selectedDate, async (date) => {
   spots.value = []
   selectedSpotLabel.value = null
-  if (!date || date < today || selectedBooking.value) return
+  if (!date) return
+  
   loadingSpots.value = true
   try {
     spots.value = await api.getParkingState(date)
@@ -128,6 +132,37 @@ async function confirmBooking() {
     })
     const label = target ? `${selectedSpotLabel.value} booked for ${target}` : `${selectedSpotLabel.value} booked for ${selectedDate.value}`
     showToast(label)
+    closeDrawer()
+    await loadBookings()
+  } catch (e: any) {
+    submitError.value = e.message
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function startEditing() {
+  if (!selectedBooking.value) return
+  isEditing.value = true
+  selectedSpotLabel.value = selectedBooking.value.parkingSpotLabel
+  loadingSpots.value = true
+  try {
+    spots.value = await api.getParkingState(selectedBooking.value.date)
+  } catch { /* ignore */ } finally {
+    loadingSpots.value = false
+  }
+}
+
+async function confirmUpdate() {
+  if (!selectedBooking.value || !selectedSpotLabel.value || !selectedDate.value) return
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await api.updateReservation(selectedBooking.value.id, {
+      parkingSpotLabel: selectedSpotLabel.value,
+      date: selectedDate.value
+    })
+    showToast(`Reservation updated to ${selectedSpotLabel.value}`)
     closeDrawer()
     await loadBookings()
   } catch (e: any) {
@@ -225,7 +260,13 @@ const STATUS_LABEL: Record<string, string> = {
 
       <!-- ═══ CALENDAR VIEW ═══ -->
       <div v-if="viewMode === 'calendar'" class="cal-section">
-        <div class="cal-nav">
+        <div v-if="loadingBookings" class="cal-skeleton">
+          <div class="skeleton-header skeleton"></div>
+          <div class="skeleton-grid">
+            <div v-for="i in 25" :key="i" class="skeleton-cell skeleton"></div>
+          </div>
+        </div>
+        <div v-else class="cal-nav">
           <button class="nav-btn" @click="prevMonth">‹</button>
           <MonthCalendar
             :year="calYear"
@@ -241,7 +282,15 @@ const STATUS_LABEL: Record<string, string> = {
       <!-- ═══ LIST VIEW ═══ -->
       <div v-else-if="viewMode === 'list'" class="list-section">
         <div v-if="bookingError" class="alert alert--error">{{ bookingError }}</div>
-        <div v-if="loadingBookings" class="loading">Loading…</div>
+        <template v-if="loadingBookings">
+          <div class="tabs">
+            <div class="tab skeleton" style="width: 100px; height: 20px; margin: 7px 14px;"></div>
+            <div class="tab skeleton" style="width: 100px; height: 20px; margin: 7px 14px;"></div>
+          </div>
+          <div class="booking-list">
+            <div v-for="i in 3" :key="i" class="booking-card skeleton" style="height: 60px;"></div>
+          </div>
+        </template>
         <template v-else>
           <div class="tabs">
             <button
@@ -310,36 +359,46 @@ const STATUS_LABEL: Record<string, string> = {
     :title="selectedDate ?? ''"
     @close="closeDrawer"
   >
-    <!-- Booked day -->
-    <template v-if="selectedBooking">
-      <div class="drawer-spot">{{ selectedBooking.parkingSpotLabel }}</div>
-      <span :class="['status-badge', `status-badge--${selectedBooking.status.toLowerCase()}`]">
-        {{ STATUS_LABEL[selectedBooking.status] }}
-      </span>
-      <div v-if="actionError" class="alert alert--error">{{ actionError }}</div>
-      <div class="drawer-actions">
-        <button
-          v-if="selectedBooking.status === 'RESERVED' && selectedBooking.date === today"
-          class="btn btn--checkin"
-          @click="checkIn(selectedBooking)"
-        >Check in</button>
-        <button
-          v-if="selectedBooking.status === 'RESERVED'"
-          class="btn btn--cancel"
-          @click="cancelBooking(selectedBooking)"
-        >Cancel booking</button>
-      </div>
-    </template>
-
-    <!-- Free future day -->
-    <template v-else-if="isFutureOrToday">
-      <template v-if="bookingLimitReached">
-        <div class="alert alert--warning">
-          You've reached the {{ bookingLimit }}-booking limit. Cancel an existing reservation to book a new one.
+    <div class="drawer-content">
+      <!-- 1. Reservation Details (if any) -->
+      <template v-if="selectedBooking && !isEditing">
+        <div class="drawer-section">
+          <h3 class="section-title">Your Booking</h3>
+          <div class="drawer-spot">{{ selectedBooking.parkingSpotLabel }}</div>
+          <span :class="['status-badge', `status-badge--${selectedBooking.status.toLowerCase()}`]">
+            {{ STATUS_LABEL[selectedBooking.status] }}
+          </span>
+          <div v-if="actionError" class="alert alert--error">{{ actionError }}</div>
+          <div class="drawer-actions">
+            <button
+              v-if="selectedBooking.status === 'RESERVED' && selectedBooking.date === today"
+              class="btn btn--checkin"
+              @click="checkIn(selectedBooking)"
+            >Check in</button>
+            <button
+              v-if="selectedBooking.status === 'RESERVED'"
+              class="btn btn--secondary"
+              @click="startEditing"
+            >Modify</button>
+            <button
+              v-if="selectedBooking.status === 'RESERVED'"
+              class="btn btn--cancel"
+              @click="cancelBooking(selectedBooking)"
+            >Cancel booking</button>
+          </div>
         </div>
       </template>
-      <template v-else>
-        <div v-if="isSecretary" class="for-other-row">
+
+      <!-- 2. Warning if limit reached -->
+      <div v-if="!selectedBooking && bookingLimitReached && !isEditing && isFutureOrToday" class="alert alert--warning" style="margin-bottom: 16px;">
+        You've reached the {{ bookingLimit }}-booking limit. Cancel an existing reservation to book a new one.
+      </div>
+
+      <!-- 3. Booking flow or consultation -->
+      <div class="drawer-section">
+        <h3 class="section-title">{{ isFutureOrToday ? (isEditing ? 'New Spot Selection' : 'Parking State & Booking') : 'Parking State (Past)' }}</h3>
+        
+        <div v-if="isSecretary && !isEditing && !selectedBooking && isFutureOrToday" class="for-other-row" style="margin-bottom: 12px;">
           <label class="for-other-label">
             <input type="checkbox" v-model="bookingForOther" />
             Book for someone else
@@ -352,31 +411,40 @@ const STATUS_LABEL: Record<string, string> = {
             autocomplete="off"
           />
         </div>
-        <p class="drawer-hint">Select a spot to book for this day.</p>
+
+        <p class="drawer-hint">
+          {{ isFutureOrToday ? (isEditing ? 'Change your spot:' : 'Select a spot to book.') : 'View occupancy on this date.' }}
+        </p>
+
         <SpotGrid
           :spots="spots"
           :selected-spot-label="selectedSpotLabel"
           :loading="loadingSpots"
-          @select="selectedSpotLabel = $event"
+          @select="isFutureOrToday && !selectedBooking ? selectedSpotLabel = $event : isEditing ? selectedSpotLabel = $event : null"
         />
-        <div v-if="submitError" class="alert alert--error">{{ submitError }}</div>
-        <div v-if="selectedSpotLabel" class="confirm-row">
-          <span class="confirm-label">Spot <strong>{{ selectedSpotLabel }}</strong> selected</span>
-          <button
-            class="btn btn--primary"
-            :disabled="submitting || (bookingForOther && !targetUsername.trim())"
-            @click="confirmBooking"
-          >
-            {{ submitting ? 'Booking…' : 'Confirm' }}
-          </button>
-        </div>
-      </template>
-    </template>
 
-    <!-- Past day, no booking -->
-    <template v-else>
-      <p class="drawer-hint past-hint">No booking on this day.</p>
-    </template>
+        <div v-if="submitError" class="alert alert--error">{{ submitError }}</div>
+
+        <!-- 4. Confirm actions -->
+        <div v-if="selectedSpotLabel && isFutureOrToday" class="confirm-row">
+          <span class="confirm-label">Spot <strong>{{ selectedSpotLabel }}</strong> selected</span>
+          <div class="confirm-actions">
+            <button
+                v-if="isEditing"
+                class="btn btn--outline"
+                @click="isEditing = false"
+            >Cancel</button>
+            <button
+              class="btn btn--primary"
+              :disabled="submitting || (!isEditing && (bookingLimitReached || (bookingForOther && !targetUsername.trim())))"
+              @click="isEditing ? confirmUpdate() : confirmBooking()"
+            >
+              {{ submitting ? (isEditing ? 'Updating…' : 'Booking…') : (isEditing ? 'Save Changes' : 'Confirm') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </DrawerPanel>
 </template>
 
@@ -483,6 +551,26 @@ const STATUS_LABEL: Record<string, string> = {
 .nav-btn:hover { background: var(--accent-bg); }
 
 /* ── Drawer content ── */
+.drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  margin: 0;
+  opacity: 0.8;
+}
+
 .drawer-spot {
   font-size: 26px;
   font-weight: 700;
@@ -713,6 +801,14 @@ const STATUS_LABEL: Record<string, string> = {
   padding: 7px 16px;
 }
 
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn--secondary { background: var(--code-bg); color: var(--text-h); }
+.btn--outline { background: none; border: 1px solid var(--border); color: var(--text-h); }
+
 .btn--primary:not(:disabled):hover {
   box-shadow: 0 2px 10px rgba(170, 59, 255, 0.35);
 }
@@ -725,5 +821,29 @@ const STATUS_LABEL: Record<string, string> = {
 @media (prefers-color-scheme: dark) {
   .btn--checkin { background: #14532d; color: #86efac; }
   .btn--cancel  { background: #450a0a; color: #fca5a5; }
+}
+
+/* ── Skeletons ── */
+.cal-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.skeleton-header {
+  height: 32px;
+  width: 200px;
+  align-self: center;
+}
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+}
+.skeleton-cell {
+  height: 64px;
+}
+
+@media (max-width: 640px) {
+  .skeleton-cell { height: 44px; }
 }
 </style>

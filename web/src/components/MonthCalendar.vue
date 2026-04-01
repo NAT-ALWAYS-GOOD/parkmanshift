@@ -13,7 +13,7 @@ const emit = defineEmits<{
   (e: 'select', date: string): void
 }>()
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -30,13 +30,25 @@ const bookingByDate = computed(() => {
   return map
 })
 
-// Build 6×7 grid (null = padding)
+// Build 5-column grid (null = padding), excluding Sat/Sun
 const cells = computed<(number | null)[]>(() => {
-  const firstDow = (new Date(props.year, props.month, 1).getDay() + 6) % 7 // Mon=0
   const daysInMonth = new Date(props.year, props.month + 1, 0).getDate()
-  const result: (number | null)[] = Array(firstDow).fill(null)
-  for (let d = 1; d <= daysInMonth; d++) result.push(d)
-  while (result.length % 7 !== 0) result.push(null)
+  const result: (number | null)[] = []
+  
+  // Padding for the first week if 1st is Mon-Fri
+  const firstDow = (new Date(props.year, props.month, 1).getDay() + 6) % 7 // Mon=0
+  if (firstDow < 5) {
+    for (let i = 0; i < firstDow; i++) result.push(null)
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = (new Date(props.year, props.month, d).getDay() + 6) % 7
+    if (dow < 5) {
+      result.push(d)
+    }
+  }
+  
+  while (result.length % 5 !== 0) result.push(null)
   return result
 })
 
@@ -115,7 +127,7 @@ const title = computed(() => `${MONTHS[props.month]} ${props.year}`)
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 2px;
 }
 

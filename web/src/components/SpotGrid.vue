@@ -77,7 +77,7 @@ function handleClick(row: string, col: number) {
           :title="`${toLabel(row, col)}${isElectric(row, getSpot(row, col)) ? ' (EV)' : ''}`"
           @click="handleClick(row, col)"
         >
-          {{ String(col).padStart(2, '0') }}
+          {{ toLabel(row, col) }}
           <span v-if="isElectric(row, getSpot(row, col))" class="spot-ev-icon">⚡</span>
         </button>
       </div>
