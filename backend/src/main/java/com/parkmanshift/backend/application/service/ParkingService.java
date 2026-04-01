@@ -1,5 +1,6 @@
 package com.parkmanshift.backend.application.service;
 
+import com.parkmanshift.backend.application.port.in.CancelUnconfirmedReservationsUseCase;
 import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
 import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
@@ -21,7 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase {
+public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase, CancelUnconfirmedReservationsUseCase {
 
     private final ParkingSpotRepositoryPort spotRepository;
     private final ReservationRepositoryPort reservationRepository;
@@ -177,5 +178,22 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
         double electricSpotProportion = (totalElectricSpots > 0 && totalReservations > 0) ? (double) electricSpotsUsed / totalReservations * 100 : 0.0;
 
         return new DashboardStats(occupancyRate, noShowProportion, electricSpotProportion, totalReservations);
+    }
+
+    @Override
+    public int cancelUnconfirmedReservationsForToday() {
+        LocalDate today = LocalDate.now();
+        List<Reservation> todayReservations = reservationRepository.findByDate(today);
+
+        int cancelledCount = 0;
+        for (Reservation res : todayReservations) {
+            if (res.getStatus() == ReservationStatus.RESERVED) {
+                res.setStatus(ReservationStatus.CANCELLED);
+                reservationRepository.save(res);
+                messageProducer.sendEvent("{\"type\": \"ReservationAutoCancelled\", \"id\": \"" + res.getId() + "\"}");
+                cancelledCount++;
+            }
+        }
+        return cancelledCount;
     }
 }

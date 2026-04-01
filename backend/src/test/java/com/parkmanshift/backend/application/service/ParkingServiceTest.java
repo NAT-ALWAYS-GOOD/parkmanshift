@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -150,5 +151,39 @@ public class ParkingServiceTest {
         
         DashboardStats statsNone = parkingService.getDashboardStats(UserRole.MANAGER, YearMonth.of(2025, 5), "EMP2");
         assertEquals(0, statsNone.getTotalReservations());
+    }
+
+    @Test
+    public void cancelUnconfirmedReservationsForToday_ShouldCancelReservedOnly() {
+        LocalDate today = LocalDate.now();
+        Reservation reserved1 = new Reservation(UUID.randomUUID(), "A01", "EMP1", today, ReservationStatus.RESERVED);
+        Reservation reserved2 = new Reservation(UUID.randomUUID(), "B01", "EMP2", today, ReservationStatus.RESERVED);
+        Reservation occupied = new Reservation(UUID.randomUUID(), "C01", "EMP3", today, ReservationStatus.OCCUPIED);
+        Reservation cancelled = new Reservation(UUID.randomUUID(), "D01", "EMP4", today, ReservationStatus.CANCELLED);
+
+        when(reservationRepository.findByDate(today)).thenReturn(List.of(reserved1, reserved2, occupied, cancelled));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        int result = parkingService.cancelUnconfirmedReservationsForToday();
+
+        assertEquals(2, result);
+        assertEquals(ReservationStatus.CANCELLED, reserved1.getStatus());
+        assertEquals(ReservationStatus.CANCELLED, reserved2.getStatus());
+        assertEquals(ReservationStatus.OCCUPIED, occupied.getStatus());
+        verify(reservationRepository, times(2)).save(any(Reservation.class));
+        verify(messageProducer, times(2)).sendEvent(contains("ReservationAutoCancelled"));
+    }
+
+    @Test
+    public void cancelUnconfirmedReservationsForToday_WithNoReserved_ShouldReturnZero() {
+        LocalDate today = LocalDate.now();
+        Reservation occupied = new Reservation(UUID.randomUUID(), "A01", "EMP1", today, ReservationStatus.OCCUPIED);
+
+        when(reservationRepository.findByDate(today)).thenReturn(List.of(occupied));
+
+        int result = parkingService.cancelUnconfirmedReservationsForToday();
+
+        assertEquals(0, result);
+        verify(reservationRepository, never()).save(any(Reservation.class));
     }
 }
