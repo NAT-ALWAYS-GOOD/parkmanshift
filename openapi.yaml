@@ -177,6 +177,33 @@ paths:
         '200':
           description: Annulation effectuée avec succès
 
+  /api/parking/dashboard:
+    get:
+      tags:
+        - parking
+      summary: Récupérer les statistiques du dashboard manager
+      operationId: getDashboardStats
+      parameters:
+        - name: yearMonth
+          in: query
+          description: Mois pour filtrer les statistiques (ex. 2026-04)
+          required: false
+          schema:
+            type: string
+        - name: employeeId
+          in: query
+          description: ID de l'employé pour filtrer les statistiques
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStatsDto'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -263,3 +290,22 @@ components:
         - RESERVED
         - OCCUPIED
         - CANCELLED
+    DashboardStatsDto:
+      type: object
+      properties:
+        occupancyRate:
+          type: number
+          format: double
+          description: Taux d'occupation moyen ou actuel (%)
+        noShowProportion:
+          type: number
+          format: double
+          description: Proportion de réservations non utilisées (%)
+        electricSpotProportion:
+          type: number
+          format: double
+          description: Proportion de places électriques utilisées (%)
+        totalReservations:
+          type: integer
+          format: int32
+          description: Nombre total de réservations sur la période

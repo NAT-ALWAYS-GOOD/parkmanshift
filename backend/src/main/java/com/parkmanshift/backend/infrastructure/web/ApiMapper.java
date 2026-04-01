@@ -40,6 +40,15 @@ public final class ApiMapper {
         return dto;
     }
 
+    public static DashboardStatsDto toDto(DashboardStats domain) {
+        DashboardStatsDto dto = new DashboardStatsDto();
+        dto.setOccupancyRate(domain.getOccupancyRate());
+        dto.setNoShowProportion(domain.getNoShowProportion());
+        dto.setElectricSpotProportion(domain.getElectricSpotProportion());
+        dto.setTotalReservations(domain.getTotalReservations());
+        return dto;
+    }
+
     public static SpotStatusDto toDto(SpotStatus domain) {
         return SpotStatusDto.fromValue(domain.name());
     }

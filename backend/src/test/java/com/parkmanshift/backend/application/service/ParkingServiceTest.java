@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -101,5 +102,53 @@ public class ParkingServiceTest {
 
         assertEquals("B01", state.get(1).getSpot().getLabel());
         assertEquals(SpotStatus.FREE, state.get(1).getStatus());
+    }
+
+    @Test
+    public void getDashboardStats_AsEmployee_ShouldThrowException() {
+        assertThrows(IllegalArgumentException.class, () -> parkingService.getDashboardStats(UserRole.EMPLOYEE, null, null));
+    }
+
+    @Test
+    public void getDashboardStats_AsManager_ShouldReturnStats() {
+        ParkingSpot spotElectric = new ParkingSpot("A01", SpotType.ELECTRIC);
+        ParkingSpot spotThermal = new ParkingSpot("B01", SpotType.THERMAL);
+        when(spotRepository.findAll()).thenReturn(List.of(spotElectric, spotThermal));
+
+        Reservation resOcc = new Reservation(UUID.randomUUID(), "A01", "EMP1", DATE, ReservationStatus.OCCUPIED);
+        Reservation resNoShow = new Reservation(UUID.randomUUID(), "B01", "EMP2", DATE, ReservationStatus.CANCELLED);
+
+        when(reservationRepository.findAllReservations()).thenReturn(List.of(resOcc, resNoShow));
+
+        DashboardStats stats = parkingService.getDashboardStats(UserRole.MANAGER, null, null);
+
+        assertNotNull(stats);
+        assertEquals(2, stats.getTotalReservations());
+        assertEquals(50.0, stats.getOccupancyRate(), 0.01);
+        assertEquals(50.0, stats.getNoShowProportion(), 0.01);
+        assertEquals(50.0, stats.getElectricSpotProportion(), 0.01);
+    }
+
+    @Test
+    public void getDashboardStats_WithFilters_ShouldReturnFilteredStats() {
+        ParkingSpot spotElectric = new ParkingSpot("A01", SpotType.ELECTRIC);
+        when(spotRepository.findAll()).thenReturn(List.of(spotElectric));
+
+        Reservation resOcc1 = new Reservation(UUID.randomUUID(), "A01", "EMP1", LocalDate.of(2025, 5, 10), ReservationStatus.OCCUPIED);
+        Reservation resOcc2 = new Reservation(UUID.randomUUID(), "A01", "EMP2", LocalDate.of(2025, 6, 12), ReservationStatus.OCCUPIED);
+
+        when(reservationRepository.findAllReservations()).thenReturn(List.of(resOcc1, resOcc2));
+
+        DashboardStats statsMonth = parkingService.getDashboardStats(UserRole.MANAGER, YearMonth.of(2025, 5), null);
+        assertEquals(1, statsMonth.getTotalReservations());
+
+        DashboardStats statsEmp = parkingService.getDashboardStats(UserRole.MANAGER, null, "EMP2");
+        assertEquals(1, statsEmp.getTotalReservations());
+        
+        DashboardStats statsBoth = parkingService.getDashboardStats(UserRole.MANAGER, YearMonth.of(2025, 6), "EMP2");
+        assertEquals(1, statsBoth.getTotalReservations());
+        
+        DashboardStats statsNone = parkingService.getDashboardStats(UserRole.MANAGER, YearMonth.of(2025, 5), "EMP2");
+        assertEquals(0, statsNone.getTotalReservations());
     }
 }

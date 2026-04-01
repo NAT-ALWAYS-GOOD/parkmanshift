@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import MonthCalendar from '../components/MonthCalendar.vue'
 import SpotGrid from '../components/SpotGrid.vue'
 import DrawerPanel from '../components/DrawerPanel.vue'
+import DashboardPanel from '../components/DashboardPanel.vue'
 import { useToast } from '../composables/useToast'
 import { api } from '../services/api'
 import { useAuth } from '../composables/useAuth'
@@ -15,7 +16,7 @@ const isSecretary = computed(() => hasRole('SECRETARY'))
 const isManager = computed(() => hasRole('MANAGER'))
 
 // ── View toggle ──────────────────────────────────────────────
-type ViewMode = 'calendar' | 'list'
+type ViewMode = 'calendar' | 'list' | 'dashboard'
 const viewMode = ref<ViewMode>('calendar')
 
 // ── Reservations ──────────────────────────────────────────────
@@ -209,8 +210,18 @@ const STATUS_LABEL: Record<string, string> = {
           >
             📋 List
           </button>
+          <button
+            v-if="isManager || isSecretary"
+            :class="['toggle-btn', { 'toggle-btn--active': viewMode === 'dashboard' }]"
+            @click="viewMode = 'dashboard'"
+          >
+            📊 Dashboard
+          </button>
         </div>
       </div>
+
+      <!-- ═══ DASHBOARD VIEW ═══ -->
+      <DashboardPanel v-if="viewMode === 'dashboard'" />
 
       <!-- ═══ CALENDAR VIEW ═══ -->
       <div v-if="viewMode === 'calendar'" class="cal-section">
@@ -228,7 +239,7 @@ const STATUS_LABEL: Record<string, string> = {
       </div>
 
       <!-- ═══ LIST VIEW ═══ -->
-      <div v-else class="list-section">
+      <div v-else-if="viewMode === 'list'" class="list-section">
         <div v-if="bookingError" class="alert alert--error">{{ bookingError }}</div>
         <div v-if="loadingBookings" class="loading">Loading…</div>
         <template v-else>

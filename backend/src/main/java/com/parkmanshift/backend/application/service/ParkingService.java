@@ -1,5 +1,6 @@
 package com.parkmanshift.backend.application.service;
 
+import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
 import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
@@ -13,13 +14,14 @@ import com.parkmanshift.backend.domain.exception.SpotNotAvailableException;
 import com.parkmanshift.backend.domain.model.*;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase {
+public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase {
 
     private final ParkingSpotRepositoryPort spotRepository;
     private final ReservationRepositoryPort reservationRepository;
@@ -124,5 +126,56 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
         return reservationRepository.findByEmployeeId(targetEmployeeId).stream()
                 .sorted((r1, r2) -> r2.getDate().compareTo(r1.getDate()))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public DashboardStats getDashboardStats(UserRole requesterRole, YearMonth yearMonth, String employeeId) {
+        if (requesterRole != UserRole.MANAGER && requesterRole != UserRole.SECRETARY) {
+            throw new IllegalArgumentException("Access denied to dashboard");
+        }
+
+        List<Reservation> allReservations = reservationRepository.findAllReservations();
+        List<ParkingSpot> allSpots = spotRepository.findAll();
+
+        if (yearMonth != null) {
+            allReservations = allReservations.stream()
+                    .filter(r -> YearMonth.from(r.getDate()).equals(yearMonth))
+                    .collect(Collectors.toList());
+        }
+
+        if (employeeId != null && !employeeId.isBlank()) {
+            allReservations = allReservations.stream()
+                    .filter(r -> r.getEmployeeId().equals(employeeId))
+                    .collect(Collectors.toList());
+        }
+
+        int totalReservations = allReservations.size();
+        
+        long noShows = allReservations.stream()
+                .filter(r -> r.getStatus() == ReservationStatus.CANCELLED)
+                .count();
+        double noShowProportion = totalReservations > 0 ? (double) noShows / totalReservations * 100 : 0.0;
+
+        long occupied = allReservations.stream()
+                .filter(r -> r.getStatus() == ReservationStatus.OCCUPIED)
+                .count();
+
+        double occupancyRate = totalReservations > 0 ? (double) occupied / totalReservations * 100 : 0.0;
+
+        long electricSpotsUsed = allReservations.stream()
+                .filter(r -> r.getStatus() == ReservationStatus.OCCUPIED || r.getStatus() == ReservationStatus.RESERVED)
+                .filter(r -> {
+                    return allSpots.stream()
+                            .filter(s -> s.getLabel().equals(r.getParkingSpotLabel()))
+                            .findFirst()
+                            .map(s -> s.getType() == SpotType.ELECTRIC)
+                            .orElse(false);
+                })
+                .count();
+        
+        long totalElectricSpots = allSpots.stream().filter(s -> s.getType() == SpotType.ELECTRIC).count();
+        double electricSpotProportion = (totalElectricSpots > 0 && totalReservations > 0) ? (double) electricSpotsUsed / totalReservations * 100 : 0.0;
+
+        return new DashboardStats(occupancyRate, noShowProportion, electricSpotProportion, totalReservations);
     }
 }

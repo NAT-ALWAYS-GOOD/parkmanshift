@@ -6,6 +6,8 @@ import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
+import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
+import com.parkmanshift.api.model.DashboardStatsDto;
 import com.parkmanshift.backend.domain.model.Reservation;
 import com.parkmanshift.backend.domain.model.UserRole;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,6 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,12 +29,24 @@ public class ParkingController {
     private final ReserveSpotUseCase reserveSpotUseCase;
     private final ManageReservationUseCase manageReservationUseCase;
     private final GetReservationHistoryUseCase getReservationHistoryUseCase;
+    private final GetDashboardStatsUseCase getDashboardStatsUseCase;
 
-    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase, GetReservationHistoryUseCase getReservationHistoryUseCase) {
+    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase, GetReservationHistoryUseCase getReservationHistoryUseCase, GetDashboardStatsUseCase getDashboardStatsUseCase) {
         this.viewParkingStateUseCase = viewParkingStateUseCase;
         this.reserveSpotUseCase = reserveSpotUseCase;
         this.manageReservationUseCase = manageReservationUseCase;
         this.getReservationHistoryUseCase = getReservationHistoryUseCase;
+        this.getDashboardStatsUseCase = getDashboardStatsUseCase;
+    }
+
+    @GetMapping("/dashboard")
+    public DashboardStatsDto getDashboardStats(
+            @RequestParam(required = false) YearMonth yearMonth,
+            @RequestParam(required = false) String employeeId,
+            java.security.Principal principal) {
+        Authentication authentication = (Authentication) principal;
+        UserRole role = getUserRole(authentication);
+        return ApiMapper.toDto(getDashboardStatsUseCase.getDashboardStats(role, yearMonth, employeeId));
     }
 
     @GetMapping("/state")

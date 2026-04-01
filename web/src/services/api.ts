@@ -1,4 +1,4 @@
-import type { Reservation, ReserveRequest, SpotState } from '../types'
+import type { Reservation, ReserveRequest, SpotState, DashboardStats } from '../types'
 import { getToken } from '../composables/useAuth'
 
 function authHeaders(): HeadersInit {
@@ -55,5 +55,14 @@ export const api = {
     return request(`/api/parking/reservations/${id}`, {
       method: 'DELETE',
     })
+  },
+
+  // GET /api/parking/dashboard
+  getDashboardStats(yearMonth?: string, employeeId?: string): Promise<DashboardStats> {
+    const params = new URLSearchParams()
+    if (yearMonth) params.append('yearMonth', yearMonth)
+    if (employeeId) params.append('employeeId', employeeId)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return request(`/api/parking/dashboard${qs}`)
   },
 }

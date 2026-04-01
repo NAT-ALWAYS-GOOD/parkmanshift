@@ -27,3 +27,10 @@ export interface ReserveRequest {
   date: string
   targetUsername?: string
 }
+
+export interface DashboardStats {
+  occupancyRate: number
+  noShowProportion: number
+  electricSpotProportion: number
+  totalReservations: number
+}

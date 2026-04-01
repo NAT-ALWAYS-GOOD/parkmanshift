@@ -105,6 +105,13 @@ public class ParkingPersistenceAdapter implements ParkingSpotRepositoryPort, Res
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<Reservation> findAllReservations() {
+        return reservationRepository.findAll().stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
     // Mappers
 
     private ParkingSpot toDomain(ParkingSpotEntity entity) {

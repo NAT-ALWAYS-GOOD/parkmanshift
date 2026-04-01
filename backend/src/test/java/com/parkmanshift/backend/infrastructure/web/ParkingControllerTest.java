@@ -4,6 +4,8 @@ import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
+import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
+import com.parkmanshift.backend.domain.model.DashboardStats;
 import com.parkmanshift.backend.domain.model.Reservation;
 import com.parkmanshift.backend.domain.model.ReservationStatus;
 import com.parkmanshift.backend.domain.model.UserRole;
@@ -23,6 +25,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.servlet.mvc.method.annotation.PrincipalMethodArgumentResolver;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +56,9 @@ public class ParkingControllerTest {
 
     @Mock
     private GetReservationHistoryUseCase getReservationHistoryUseCase;
+
+    @Mock
+    private GetDashboardStatsUseCase getDashboardStatsUseCase;
 
     @Mock
     private Authentication mockAuthentication;
@@ -92,5 +98,22 @@ public class ParkingControllerTest {
                 .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parkingSpotLabel").value("A01"));
+    }
+
+    @Test
+    public void testGetDashboardStats() throws Exception {
+        DashboardStats stats = new DashboardStats(75.0, 10.0, 25.0, 40);
+        when(mockAuthentication.getName()).thenReturn("admin");
+        doReturn(List.of(new SimpleGrantedAuthority("ROLE_MANAGER"))).when(mockAuthentication).getAuthorities();
+        when(getDashboardStatsUseCase.getDashboardStats(eq(UserRole.MANAGER), any(), any())).thenReturn(stats);
+
+        mockMvc.perform(get("/api/parking/dashboard")
+                .principal(mockAuthentication)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.occupancyRate").value(75.0))
+                .andExpect(jsonPath("$.noShowProportion").value(10.0))
+                .andExpect(jsonPath("$.electricSpotProportion").value(25.0))
+                .andExpect(jsonPath("$.totalReservations").value(40));
     }
 }
