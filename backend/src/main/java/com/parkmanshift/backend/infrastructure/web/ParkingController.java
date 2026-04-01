@@ -13,6 +13,7 @@ import com.parkmanshift.backend.domain.model.Reservation;
 import com.parkmanshift.backend.domain.model.UserRole;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +44,7 @@ public class ParkingController {
     }
 
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SECRETARY')")
     public DashboardStatsDto getDashboardStats(
             @RequestParam(required = false) YearMonth yearMonth,
             @RequestParam(required = false) String employeeId,
@@ -65,6 +67,7 @@ public class ParkingController {
     }
 
     @PostMapping("/reservations")
+    @PreAuthorize("isAuthenticated()")
     public ReservationDto reserveSpot(@RequestBody com.parkmanshift.api.model.ReserveRequestDto request, java.security.Principal principal) {
         Authentication authentication = (Authentication) principal;
         String username = authentication.getName();
@@ -84,6 +87,7 @@ public class ParkingController {
     }
 
     @GetMapping("/reservations/history")
+    @PreAuthorize("isAuthenticated()")
     public List<ReservationDto> getHistory(
             @RequestParam(required = false) String employeeId,
             java.security.Principal principal) {
@@ -100,6 +104,7 @@ public class ParkingController {
     }
 
     @PostMapping("/reservations/{id}/checkin")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> checkIn(@PathVariable UUID id, java.security.Principal principal) {
         Authentication authentication = (Authentication) principal;
         String username = authentication.getName();
@@ -109,6 +114,7 @@ public class ParkingController {
     }
 
     @DeleteMapping("/reservations/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> cancelReservation(@PathVariable UUID id, java.security.Principal principal) {
         Authentication authentication = (Authentication) principal;
         String username = authentication.getName();
@@ -118,6 +124,7 @@ public class ParkingController {
     }
 
     @PutMapping("/reservations/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ReservationDto updateReservation(
             @PathVariable UUID id,
             @RequestBody com.parkmanshift.api.model.ReserveRequestDto request,
@@ -139,7 +146,15 @@ public class ParkingController {
     private UserRole getUserRole(Authentication authentication) {
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .map(auth -> auth.replace("ROLE_", ""))
+                .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
+                .filter(auth -> {
+                    try {
+                        UserRole.valueOf(auth);
+                        return true;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
                 .map(UserRole::valueOf)
                 .findFirst()
                 .orElse(UserRole.EMPLOYEE);

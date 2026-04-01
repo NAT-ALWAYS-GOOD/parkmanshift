@@ -13,6 +13,7 @@ import com.parkmanshift.backend.application.port.out.ReservationRepositoryPort;
 import com.parkmanshift.backend.domain.exception.ReservationLimitExceededException;
 import com.parkmanshift.backend.domain.exception.ReservationNotFoundException;
 import com.parkmanshift.backend.domain.exception.SpotNotAvailableException;
+import com.parkmanshift.backend.domain.exception.UserAlreadyReservedException;
 import com.parkmanshift.backend.domain.model.*;
 
 import java.time.LocalDate;
@@ -37,14 +38,25 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
 
     @Override
     public Reservation reserveSpot(String parkingSpotLabel, String employeeId, UserRole userRole, LocalDate date) {
-        int limit = (userRole == UserRole.MANAGER) ? 30 : 5;
         LocalDate today = LocalDate.now();
 
-        List<Reservation> activeReservations = reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(
-                employeeId, today, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+        // Secretaries bypass the reservation limit when booking for others
+        if (userRole != UserRole.SECRETARY) {
+            int limit = (userRole == UserRole.MANAGER) ? 30 : 5;
+            List<Reservation> activeReservations = reservationRepository.findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(
+                    employeeId, today, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+            );
+            if (activeReservations.size() >= limit) {
+                throw new ReservationLimitExceededException("Maximum " + limit + " active/future reservations allowed.");
+            }
+        }
+
+        // Check if employee already has a reservation on this day
+        List<Reservation> sameDayReservations = reservationRepository.findByEmployeeIdAndDateAndStatusIn(
+                employeeId, date, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
         );
-        if (activeReservations.size() >= limit) {
-            throw new ReservationLimitExceededException("Maximum " + limit + " active/future reservations allowed.");
+        if (!sameDayReservations.isEmpty()) {
+            throw new UserAlreadyReservedException("User already has a reservation for this day.");
         }
 
         // Check if spot is free
@@ -107,14 +119,21 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
                     .findFirst();
 
             SpotStatus status = SpotStatus.FREE;
+            String reservedBy = null;
+            ReservationStatus resStatus = null;
+            java.util.UUID resId = null;
             if (resOpt.isPresent()) {
-                if (resOpt.get().getStatus() == ReservationStatus.RESERVED) {
+                Reservation r = resOpt.get();
+                reservedBy = r.getEmployeeId();
+                resStatus = r.getStatus();
+                resId = r.getId();
+                if (r.getStatus() == ReservationStatus.RESERVED) {
                     status = SpotStatus.RESERVED;
-                } else if (resOpt.get().getStatus() == ReservationStatus.OCCUPIED) {
+                } else if (r.getStatus() == ReservationStatus.OCCUPIED) {
                     status = SpotStatus.OCCUPIED;
                 }
             }
-            states.add(new SpotState(spot, status));
+            states.add(new SpotState(spot, status, reservedBy, resStatus, resId));
         }
 
         return states;

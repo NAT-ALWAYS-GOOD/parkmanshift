@@ -13,10 +13,20 @@ import org.springframework.context.annotation.Configuration;
 public class UseCaseConfig {
 
     @Bean
-    public CreateUserUseCase createUserUseCase(
+    public UserService userService(
             UserRepositoryPort userRepository,
             PasswordEncoder passwordEncoder) {
         return new UserService(userRepository, passwordEncoder);
+    }
+
+    @Bean
+    public CreateUserUseCase createUserUseCase(UserService userService) {
+        return userService;
+    }
+
+    @Bean
+    public SearchUserUseCase searchUserUseCase(UserService userService) {
+        return userService;
     }
 
     @Bean

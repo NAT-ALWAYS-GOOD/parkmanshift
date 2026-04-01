@@ -42,9 +42,11 @@ public class SecurityConfig {
                         .authenticationEntryPoint(unauthorizedEntryPoint())
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/hello").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register-employee").hasRole("SECRETARY")
+                        .requestMatchers("/api/users/search").hasRole("SECRETARY")
                         .requestMatchers("/api/parking/**").authenticated()
                         .anyRequest().authenticated()
                 )

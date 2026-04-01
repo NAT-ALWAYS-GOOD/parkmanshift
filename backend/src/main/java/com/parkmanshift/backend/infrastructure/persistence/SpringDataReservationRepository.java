@@ -11,6 +11,7 @@ public interface SpringDataReservationRepository extends JpaRepository<Reservati
     List<ReservationEntity> findByReservationDate(LocalDate reservationDate);
     List<ReservationEntity> findByEmployeeId(String employeeId);
     List<ReservationEntity> findByEmployeeIdAndStatusIn(String employeeId, List<String> statuses);
+    List<ReservationEntity> findByEmployeeIdAndReservationDateAndStatusIn(String employeeId, LocalDate date, List<String> statuses);
     List<ReservationEntity> findByEmployeeIdAndReservationDateGreaterThanEqualAndStatusIn(String employeeId, LocalDate date, List<String> statuses);
     List<ReservationEntity> findByParkingSpotLabelAndReservationDateAndStatusIn(String parkingSpotLabel, LocalDate reservationDate, List<String> statuses);
 }

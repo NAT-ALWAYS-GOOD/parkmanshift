@@ -77,6 +77,28 @@ paths:
       responses:
         '200':
           description: Utilisateur créé avec succès
+  /api/users/search:
+    get:
+      tags:
+        - auth
+      summary: Rechercher des utilisateurs (réservé aux secrétaires)
+      operationId: searchUsers
+      parameters:
+        - name: query
+          in: query
+          description: Terme de recherche (nom d'utilisateur)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDto'
   /api/parking/state:
     get:
       tags:
@@ -244,6 +266,15 @@ components:
           $ref: '#/components/schemas/ParkingSpotDto'
         status:
           $ref: '#/components/schemas/SpotStatusDto'
+        reservedBy:
+          type: string
+          description: Username of the person who reserved/occupies this spot (null if free)
+        reservationStatus:
+          $ref: '#/components/schemas/ReservationStatusDto'
+        reservationId:
+          type: string
+          format: uuid
+          description: ID of the reservation (null if free)
     ParkingSpotDto:
       type: object
       properties:
@@ -335,3 +366,11 @@ components:
           type: integer
           format: int32
           description: Nombre total de réservations sur la période
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string

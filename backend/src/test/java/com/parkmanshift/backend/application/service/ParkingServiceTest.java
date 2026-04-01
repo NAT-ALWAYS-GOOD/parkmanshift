@@ -5,6 +5,7 @@ import com.parkmanshift.backend.application.port.out.ParkingSpotRepositoryPort;
 import com.parkmanshift.backend.application.port.out.ReservationRepositoryPort;
 import com.parkmanshift.backend.domain.exception.ReservationLimitExceededException;
 import com.parkmanshift.backend.domain.exception.SpotNotAvailableException;
+import com.parkmanshift.backend.domain.exception.UserAlreadyReservedException;
 import com.parkmanshift.backend.domain.model.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -258,6 +259,52 @@ public class ParkingServiceTest {
         Reservation updated = parkingService.updateReservation(resId, "A01", DATE, "EMP1", UserRole.EMPLOYEE);
 
         assertEquals("A01", updated.getParkingSpotLabel());
+    }
+
+    @Test
+    public void reserveSpot_WhenEmployeeAlreadyHasReservationOnSameDay_ShouldThrowException() {
+        when(reservationRepository.findByEmployeeIdAndDateAndStatusIn(eq(EMP_ID), eq(DATE), anyList()))
+                .thenReturn(List.of(new Reservation()));
+
+        assertThrows(UserAlreadyReservedException.class, () ->
+                parkingService.reserveSpot("A01", EMP_ID, UserRole.EMPLOYEE, DATE));
+    }
+
+    @Test
+    public void getParkingStateForDate_ShouldIncludeReservationIdInSpotState() {
+        ParkingSpot spot1 = new ParkingSpot("A01", SpotType.ELECTRIC);
+        when(spotRepository.findAll()).thenReturn(List.of(spot1));
+
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", EMP_ID, DATE, ReservationStatus.RESERVED);
+        when(reservationRepository.findByDate(DATE)).thenReturn(List.of(res));
+
+        List<SpotState> state = parkingService.getParkingStateForDate(DATE);
+
+        assertEquals(1, state.size());
+        assertEquals(resId, state.get(0).getReservationId());
+    }
+
+    @Test
+    public void cancelReservation_AsSecretary_ForOther_ShouldSuccess() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP123", DATE, ReservationStatus.RESERVED);
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+        
+        parkingService.cancelReservation(resId, "SEC1", UserRole.SECRETARY);
+        
+        assertEquals(ReservationStatus.CANCELLED, res.getStatus());
+        verify(reservationRepository).save(res);
+    }
+
+    @Test
+    public void cancelReservation_AsEmployee_ForOther_ShouldThrowException() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP123", DATE, ReservationStatus.RESERVED);
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+        
+        assertThrows(IllegalArgumentException.class, () ->
+            parkingService.cancelReservation(resId, "OTHER_EMP", UserRole.EMPLOYEE));
     }
 }
 

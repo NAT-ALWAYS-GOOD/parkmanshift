@@ -32,6 +32,14 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
         return toDomain(userRepository.save(entity));
     }
 
+    @Override
+    public java.util.List<User> findAllByUsernameContaining(String query) {
+        return userRepository.findByUsernameContainingIgnoreCase(query)
+                .stream()
+                .map(this::toDomain)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     private User toDomain(UserEntity entity) {
         return new User(entity.getId(), entity.getUsername(), entity.getPassword(), entity.getRole());
     }

@@ -90,6 +90,14 @@ public class ParkingPersistenceAdapter implements ParkingSpotRepositoryPort, Res
     }
 
     @Override
+    public List<Reservation> findByEmployeeIdAndDateAndStatusIn(String employeeId, LocalDate date, List<ReservationStatus> statuses) {
+        List<String> statusStrings = statuses.stream().map(Enum::name).collect(Collectors.toList());
+        return reservationRepository.findByEmployeeIdAndReservationDateAndStatusIn(employeeId, date, statusStrings).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Reservation> findByEmployeeIdAndDateGreaterThanEqualAndStatusIn(String employeeId, LocalDate date, List<ReservationStatus> statuses) {
         List<String> statusStrings = statuses.stream().map(Enum::name).collect(Collectors.toList());
         return reservationRepository.findByEmployeeIdAndReservationDateGreaterThanEqualAndStatusIn(employeeId, date, statusStrings).stream()

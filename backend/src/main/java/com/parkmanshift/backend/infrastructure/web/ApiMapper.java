@@ -20,6 +20,13 @@ public final class ApiMapper {
         SpotStateDto dto = new SpotStateDto();
         dto.setSpot(toDto(domain.getSpot()));
         dto.setStatus(toDto(domain.getStatus()));
+        dto.setReservedBy(domain.getReservedBy());
+        if (domain.getReservationStatus() != null) {
+            dto.setReservationStatus(toDto(domain.getReservationStatus()));
+        }
+        if (domain.getReservationId() != null) {
+            dto.setReservationId(domain.getReservationId());
+        }
         return dto;
     }
 
