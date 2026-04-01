@@ -169,15 +169,15 @@ async function cancelBooking(reservation: Reservation) {
 const listTab = ref<'upcoming' | 'history'>('upcoming')
 
 const upcoming = computed(() =>
-  bookings.value.filter(
-    b => b.date >= today && (b.status === 'RESERVED' || b.status === 'OCCUPIED')
-  )
+  [...bookings.value]
+    .filter(b => b.date >= today && (b.status === 'RESERVED' || b.status === 'OCCUPIED'))
+    .sort((a, b) => a.date.localeCompare(b.date))
 )
 
 const history = computed(() =>
-  bookings.value.filter(
-    b => b.date < today || b.status === 'CANCELLED'
-  )
+  [...bookings.value]
+    .filter(b => b.date < today || b.status === 'CANCELLED')
+    .sort((a, b) => b.date.localeCompare(a.date))
 )
 
 const bookingLimit = computed(() => isManager.value ? 30 : 5)
