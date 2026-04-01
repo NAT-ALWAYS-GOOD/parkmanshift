@@ -12,6 +12,9 @@ export interface ParkingSpot {
 export interface SpotState {
   spot: ParkingSpot
   status: SpotStatus
+  reservedBy?: string
+  reservationStatus?: ReservationStatus
+  reservationId?: string
 }
 
 export interface Reservation {

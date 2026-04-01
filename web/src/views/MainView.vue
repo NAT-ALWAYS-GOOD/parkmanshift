@@ -100,6 +100,30 @@ const loadingSpots = ref(false)
 const selectedSpotLabel = ref<string | null>(null)
 const bookingForOther = ref(false)
 const targetUsername = ref('')
+const userResults = ref<any[]>([])
+const searchingUsers = ref(false)
+let searchTimeout: any = null
+
+watch(targetUsername, (val) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (!val || val.length < 2) {
+    userResults.value = []
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    searchingUsers.value = true
+    try {
+      userResults.value = await api.searchUsers(val)
+    } finally {
+      searchingUsers.value = false
+    }
+  }, 300)
+})
+
+function selectUser(username: string) {
+  targetUsername.value = username
+  userResults.value = []
+}
 
 watch(selectedDate, async (date) => {
   spots.value = []
@@ -197,6 +221,21 @@ async function cancelBooking(reservation: Reservation) {
     await loadBookings()
   } catch (e: any) {
     actionError.value = e.message
+  }
+}
+
+async function confirmCancelBooking(reservationId: string) {
+  if (!confirm('Are you sure you want to cancel this reservation?')) return
+  try {
+    await api.cancelReservation(reservationId)
+    showToast('Reservation cancelled')
+    // Refresh spots for current date
+    if (selectedDate.value) {
+      spots.value = await api.getParkingState(selectedDate.value)
+    }
+    await loadBookings()
+  } catch (e: any) {
+    showToast(e.message, 'error')
   }
 }
 
@@ -403,13 +442,27 @@ const STATUS_LABEL: Record<string, string> = {
             <input type="checkbox" v-model="bookingForOther" />
             Book for someone else
           </label>
-          <input
-            v-if="bookingForOther"
-            v-model="targetUsername"
-            class="for-other-input"
-            placeholder="Username"
-            autocomplete="off"
-          />
+          <div v-if="bookingForOther" class="user-search-wrap">
+            <input
+              v-model="targetUsername"
+              class="for-other-input"
+              placeholder="Start typing username..."
+              autocomplete="off"
+            />
+            <div v-if="userResults.length" class="user-dropdown">
+              <div
+                v-for="u in userResults"
+                :key="u.id"
+                class="user-item"
+                @click="selectUser(u.username)"
+              >
+                {{ u.username }}
+              </div>
+            </div>
+            <div v-else-if="searchingUsers" class="user-dropdown">
+              <div class="user-item-info">Searching...</div>
+            </div>
+          </div>
         </div>
 
         <p class="drawer-hint">
@@ -420,7 +473,9 @@ const STATUS_LABEL: Record<string, string> = {
           :spots="spots"
           :selected-spot-label="selectedSpotLabel"
           :loading="loadingSpots"
+          :is-secretary="isSecretary"
           @select="isFutureOrToday && !selectedBooking ? selectedSpotLabel = $event : isEditing ? selectedSpotLabel = $event : null"
+          @cancel="confirmCancelBooking($event)"
         />
 
         <div v-if="submitError" class="alert alert--error">{{ submitError }}</div>
@@ -629,6 +684,46 @@ const STATUS_LABEL: Record<string, string> = {
 
 .for-other-input:focus {
   border-color: var(--accent);
+}
+
+.user-search-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 100;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+
+.user-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-h);
+  transition: background 0.12s;
+}
+
+.user-item:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.user-item-info {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  font-style: italic;
 }
 
 .confirm-row {

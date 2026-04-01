@@ -74,4 +74,9 @@ export const api = {
       body: JSON.stringify(body),
     })
   },
+
+  // GET /api/users/search
+  searchUsers(query: string): Promise<any[]> {
+    return request(`/api/users/search?query=${encodeURIComponent(query)}`)
+  },
 }

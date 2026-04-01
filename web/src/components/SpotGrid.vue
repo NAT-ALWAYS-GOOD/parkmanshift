@@ -1,21 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { SpotState } from '../types'
 
 const props = defineProps<{
   spots: SpotState[]
   selectedSpotLabel: string | null
   loading?: boolean
+  isSecretary?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'select', label: string): void
+  (e: 'cancel', reservationId: string): void
 }>()
 
 const ROWS = ['A', 'B', 'C', 'D', 'E', 'F']
 const COLS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-// EV rows are A and F by parking lot convention (fallback when no API data yet)
 function isEvRow(row: string) {
   return row === 'A' || row === 'F'
 }
@@ -24,7 +25,6 @@ function toLabel(row: string, col: number) {
   return `${row}${String(col).padStart(2, '0')}`
 }
 
-// Build lookup: label → SpotState
 const spotMap = computed(() => {
   const m: Record<string, SpotState> = {}
   for (const s of props.spots) m[s.spot.label] = s
@@ -47,23 +47,55 @@ function spotClass(row: string, col: number): string {
   if (props.loading) return 'spot spot--loading'
   if (!spot) return 'spot spot--unknown'
   if (spot.status === 'FREE') return 'spot spot--available'
+  if (props.isSecretary && spot.status === 'OCCUPIED') return 'spot spot--occupied'
+  if (props.isSecretary && spot.status === 'RESERVED') return 'spot spot--reserved'
   return 'spot spot--taken'
 }
 
-function handleClick(row: string, col: number) {
+// Secretary popover state
+const popoverSpot = ref<SpotState | null>(null)
+const popoverLabel = ref('')
+const popoverPos = ref({ top: 0, left: 0 })
+
+function handleClick(row: string, col: number, event: MouseEvent) {
   const spot = getSpot(row, col)
+  const label = toLabel(row, col)
+
+  // Secretary can click taken spots to see details
+  if (props.isSecretary && spot && spot.status !== 'FREE' && spot.reservedBy) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
+    popoverPos.value = { top: rect.bottom + 6, left: rect.left + rect.width / 2 }
+    popoverSpot.value = spot
+    popoverLabel.value = label
+    return
+  }
+
+  popoverSpot.value = null
   if (!spot || spot.status !== 'FREE') return
-  emit('select', toLabel(row, col))
+  emit('select', label)
+}
+
+function closePopover() {
+  popoverSpot.value = null
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  RESERVED: '📋 Reserved',
+  OCCUPIED: '🚗 Occupied',
 }
 </script>
 
 <template>
-  <div class="grid-wrap">
+  <div class="grid-wrap" @click.self="closePopover">
     <div class="legend">
       <span class="legend-item"><span class="dot dot--available"></span>Available</span>
       <span class="legend-item"><span class="dot dot--taken"></span>Taken</span>
       <span class="legend-item"><span class="dot dot--selected"></span>Selected</span>
       <span class="legend-item"><span class="dot dot--ev"></span>EV only (A, F)</span>
+      <template v-if="isSecretary">
+        <span class="legend-item"><span class="dot dot--reserved-legend"></span>Reserved</span>
+        <span class="legend-item"><span class="dot dot--occupied-legend"></span>Occupied</span>
+      </template>
     </div>
     <div class="grid">
       <div v-for="row in ROWS" :key="row" class="grid-row">
@@ -75,13 +107,37 @@ function handleClick(row: string, col: number) {
           :key="col"
           :class="spotClass(row, col)"
           :title="`${toLabel(row, col)}${isElectric(row, getSpot(row, col)) ? ' (EV)' : ''}`"
-          @click="handleClick(row, col)"
+          @click="handleClick(row, col, $event)"
         >
           {{ toLabel(row, col) }}
           <span v-if="isElectric(row, getSpot(row, col))" class="spot-ev-icon">⚡</span>
         </button>
       </div>
     </div>
+
+    <!-- Secretary spot detail popover -->
+    <Teleport to="body">
+      <div v-if="popoverSpot" class="popover-overlay" @click="closePopover"></div>
+      <div
+        v-if="popoverSpot"
+        class="spot-popover"
+        :style="{ top: popoverPos.top + 'px', left: popoverPos.left + 'px' }"
+      >
+        <div class="popover-arrow"></div>
+        <button class="popover-close" @click="closePopover">✕</button>
+        <div class="popover-label">{{ popoverLabel }}</div>
+        <div class="popover-user">👤 {{ popoverSpot.reservedBy }}</div>
+        <div class="popover-status" :class="popoverSpot.reservationStatus === 'OCCUPIED' ? 'status--occupied' : 'status--reserved'">
+          {{ STATUS_LABELS[popoverSpot.reservationStatus ?? ''] ?? popoverSpot.reservationStatus }}
+        </div>
+        
+        <div v-if="isSecretary && popoverSpot.reservationId" class="popover-actions">
+          <button class="btn-cancel-admin" @click="emit('cancel', popoverSpot.reservationId!); closePopover()">
+            ❌ Cancel Booking
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -120,6 +176,8 @@ function handleClick(row: string, col: number) {
 .dot--taken     { background: #ef4444; }
 .dot--selected  { background: var(--accent); }
 .dot--ev        { background: #f59e0b; }
+.dot--reserved-legend { background: #f97316; }
+.dot--occupied-legend { background: #dc2626; }
 
 .grid {
   display: flex;
@@ -189,8 +247,9 @@ function handleClick(row: string, col: number) {
   height: 28px;
   border-radius: 4px;
   border: 1px solid transparent;
-  font-size: 9px;
+  border-radius: 6px;
   font-family: var(--mono);
+  font-size: 9px;
   font-weight: 500;
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.1s;
@@ -230,6 +289,28 @@ function handleClick(row: string, col: number) {
   border-color: #fca5a5;
   color: #b91c1c;
   cursor: not-allowed;
+}
+
+.spot--reserved {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+  cursor: pointer;
+}
+.spot--reserved:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+}
+
+.spot--occupied {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #991b1b;
+  cursor: pointer;
+}
+.spot--occupied:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
 }
 
 .spot--disabled {
@@ -280,5 +361,116 @@ function handleClick(row: string, col: number) {
     border-color: #7f1d1d;
     color: #fca5a5;
   }
+  .spot--reserved {
+    background: #431407;
+    border-color: #9a3412;
+    color: #fdba74;
+  }
+  .spot--occupied {
+    background: #450a0a;
+    border-color: #991b1b;
+    color: #fca5a5;
+  }
+}
+</style>
+
+<style>
+/* Popover styles (unscoped so Teleport works) */
+.popover-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9998;
+  background: transparent;
+}
+
+.spot-popover {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 160px;
+  text-align: center;
+  animation: popIn 0.15s ease-out;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.popover-arrow {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: var(--bg, #fff);
+  border-left: 1px solid var(--border, #e5e7eb);
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.popover-close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text, #6b7280);
+  line-height: 1;
+}
+
+.popover-label {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-h, #111827);
+  margin-bottom: 6px;
+  font-family: var(--mono, monospace);
+}
+
+.popover-user {
+  font-size: 13px;
+  color: var(--text, #6b7280);
+  margin-bottom: 4px;
+}
+
+.popover-status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.status--reserved {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status--occupied {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .spot-popover {
+    background: var(--bg, #1f2937);
+    border-color: var(--border, #374151);
+  }
+  .popover-arrow {
+    background: var(--bg, #1f2937);
+    border-color: var(--border, #374151);
+  }
+  .status--reserved { background: #431407; color: #fdba74; }
+  .status--occupied { background: #450a0a; color: #fca5a5; }
 }
 </style>
