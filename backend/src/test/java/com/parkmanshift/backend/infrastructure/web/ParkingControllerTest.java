@@ -3,6 +3,7 @@ package com.parkmanshift.backend.infrastructure.web;
 import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
+import com.parkmanshift.backend.application.port.in.UpdateReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
 import com.parkmanshift.backend.domain.model.DashboardStats;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +61,9 @@ public class ParkingControllerTest {
 
     @Mock
     private GetDashboardStatsUseCase getDashboardStatsUseCase;
+
+    @Mock
+    private UpdateReservationUseCase updateReservationUseCase;
 
     @Mock
     private Authentication mockAuthentication;
@@ -112,8 +117,28 @@ public class ParkingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.occupancyRate").value(75.0))
-                .andExpect(jsonPath("$.noShowProportion").value(10.0))
+                 .andExpect(jsonPath("$.noShowProportion").value(10.0))
                 .andExpect(jsonPath("$.electricSpotProportion").value(25.0))
                 .andExpect(jsonPath("$.totalReservations").value(40));
+    }
+
+    @Test
+    public void testUpdateReservation() throws Exception {
+        UUID id = UUID.randomUUID();
+        Reservation updated = new Reservation(id, "B01", "E123", LocalDate.of(2025, 5, 10), ReservationStatus.RESERVED);
+        
+        when(mockAuthentication.getName()).thenReturn("E123");
+        doReturn(List.of(new SimpleGrantedAuthority("ROLE_EMPLOYEE"))).when(mockAuthentication).getAuthorities();
+        when(updateReservationUseCase.updateReservation(eq(id), eq("B01"), eq(LocalDate.of(2025, 5, 10)), eq("E123"), eq(UserRole.EMPLOYEE)))
+                .thenReturn(updated);
+
+        String json = "{\"parkingSpotLabel\": \"B01\", \"date\": \"2025-05-10\"}";
+
+        mockMvc.perform(put("/api/parking/reservations/" + id)
+                .principal(mockAuthentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.parkingSpotLabel").value("B01"));
     }
 }

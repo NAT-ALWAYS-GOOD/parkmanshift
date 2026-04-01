@@ -5,6 +5,7 @@ import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
 import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
+import com.parkmanshift.backend.application.port.in.UpdateReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.application.port.out.MessageProducerPort;
 import com.parkmanshift.backend.application.port.out.ParkingSpotRepositoryPort;
@@ -22,7 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase, CancelUnconfirmedReservationsUseCase {
+public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase, CancelUnconfirmedReservationsUseCase, UpdateReservationUseCase {
 
     private final ParkingSpotRepositoryPort spotRepository;
     private final ReservationRepositoryPort reservationRepository;
@@ -195,5 +196,39 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
             }
         }
         return cancelledCount;
+    }
+
+    @Override
+    public Reservation updateReservation(UUID reservationId, String newSpotLabel, LocalDate newDate, String requesterId, UserRole requesterRole) {
+        Reservation res = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+
+        if (requesterRole != UserRole.SECRETARY && !res.getEmployeeId().equals(requesterId)) {
+            throw new IllegalArgumentException("Not your reservation");
+        }
+
+        if (res.getStatus() != ReservationStatus.RESERVED) {
+            throw new SpotNotAvailableException("Cannot update. Current status: " + res.getStatus());
+        }
+
+        // Check availability on new (spot, date) excluding current reservation
+        List<Reservation> spotReservations = reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(
+                newSpotLabel, newDate, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+        );
+
+        boolean isAlreadyTakenByOther = spotReservations.stream()
+                .anyMatch(r -> !r.getId().equals(reservationId));
+
+        if (isAlreadyTakenByOther) {
+            throw new SpotNotAvailableException("The new spot is already reserved or occupied on this date.");
+        }
+
+        res.setParkingSpotLabel(newSpotLabel);
+        res.setDate(newDate);
+        Reservation saved = reservationRepository.save(res);
+
+        messageProducer.sendEvent("{\"type\": \"ReservationUpdated\", \"id\": \"" + saved.getId() + "\"}");
+
+        return saved;
     }
 }

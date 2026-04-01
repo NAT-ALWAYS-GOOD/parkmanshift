@@ -5,6 +5,7 @@ import com.parkmanshift.api.model.SpotStateDto;
 import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
 import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
+import com.parkmanshift.backend.application.port.in.UpdateReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
 import com.parkmanshift.api.model.DashboardStatsDto;
@@ -30,13 +31,15 @@ public class ParkingController {
     private final ManageReservationUseCase manageReservationUseCase;
     private final GetReservationHistoryUseCase getReservationHistoryUseCase;
     private final GetDashboardStatsUseCase getDashboardStatsUseCase;
+    private final UpdateReservationUseCase updateReservationUseCase;
 
-    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase, GetReservationHistoryUseCase getReservationHistoryUseCase, GetDashboardStatsUseCase getDashboardStatsUseCase) {
+    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase, GetReservationHistoryUseCase getReservationHistoryUseCase, GetDashboardStatsUseCase getDashboardStatsUseCase, UpdateReservationUseCase updateReservationUseCase) {
         this.viewParkingStateUseCase = viewParkingStateUseCase;
         this.reserveSpotUseCase = reserveSpotUseCase;
         this.manageReservationUseCase = manageReservationUseCase;
         this.getReservationHistoryUseCase = getReservationHistoryUseCase;
         this.getDashboardStatsUseCase = getDashboardStatsUseCase;
+        this.updateReservationUseCase = updateReservationUseCase;
     }
 
     @GetMapping("/dashboard")
@@ -112,6 +115,25 @@ public class ParkingController {
         UserRole role = getUserRole(authentication);
         manageReservationUseCase.cancelReservation(id, username, role);
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/reservations/{id}")
+    public ReservationDto updateReservation(
+            @PathVariable UUID id,
+            @RequestBody com.parkmanshift.api.model.ReserveRequestDto request,
+            java.security.Principal principal) {
+        Authentication authentication = (Authentication) principal;
+        String username = authentication.getName();
+        UserRole role = getUserRole(authentication);
+        
+        Reservation updated = updateReservationUseCase.updateReservation(
+                id,
+                request.getParkingSpotLabel(),
+                request.getDate(),
+                username,
+                role
+        );
+        return ApiMapper.toDto(updated);
     }
 
     private UserRole getUserRole(Authentication authentication) {

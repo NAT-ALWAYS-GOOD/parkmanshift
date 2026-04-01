@@ -176,6 +176,32 @@ paths:
       responses:
         '200':
           description: Annulation effectuée avec succès
+    put:
+      tags:
+        - parking
+      summary: Modifier une réservation
+      operationId: updateReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID (UUID) de la réservation à modifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveRequestDto'
+      responses:
+        '200':
+          description: Modification effectuée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationDto'
 
   /api/parking/dashboard:
     get:

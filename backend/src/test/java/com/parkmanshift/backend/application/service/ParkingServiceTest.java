@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -186,4 +187,77 @@ public class ParkingServiceTest {
         assertEquals(0, result);
         verify(reservationRepository, never()).save(any(Reservation.class));
     }
+
+    @Test
+    public void updateReservation_AsOtherEmployee_ShouldThrowException() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP1", DATE, ReservationStatus.RESERVED);
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                parkingService.updateReservation(resId, "B01", DATE, "EMP2", UserRole.EMPLOYEE));
+    }
+
+    @Test
+    public void updateReservation_AsOwner_WhenNewSpotFree_ShouldSuccess() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP1", DATE, ReservationStatus.RESERVED);
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+        // Mock checking availability for the new spot "B01"
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("B01"), eq(DATE), anyList()))
+                .thenReturn(Collections.emptyList());
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Reservation updated = parkingService.updateReservation(resId, "B01", DATE, "EMP1", UserRole.EMPLOYEE);
+
+        assertEquals("B01", updated.getParkingSpotLabel());
+        verify(messageProducer).sendEvent(contains("ReservationUpdated"));
+    }
+
+    @Test
+    public void updateReservation_AsSecretary_WhenNewSpotFree_ShouldSuccess() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP1", DATE, ReservationStatus.RESERVED);
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("B01"), eq(DATE), anyList()))
+                .thenReturn(Collections.emptyList());
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Reservation updated = parkingService.updateReservation(resId, "B01", DATE, "SEC1", UserRole.SECRETARY);
+
+        assertEquals("B01", updated.getParkingSpotLabel());
+    }
+
+    @Test
+    public void updateReservation_AlreadyOccupiedByOther_ShouldThrowException() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP1", DATE, ReservationStatus.RESERVED);
+        
+        UUID otherResId = UUID.randomUUID();
+        Reservation otherRes = new Reservation(otherResId, "B01", "EMP2", DATE, ReservationStatus.RESERVED);
+        
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("B01"), eq(DATE), anyList()))
+                .thenReturn(List.of(otherRes));
+
+        assertThrows(SpotNotAvailableException.class, () ->
+                parkingService.updateReservation(resId, "B01", DATE, "EMP1", UserRole.EMPLOYEE));
+    }
+
+    @Test
+    public void updateReservation_StayingOnSameSpot_ShouldSuccess() {
+        UUID resId = UUID.randomUUID();
+        Reservation res = new Reservation(resId, "A01", "EMP1", DATE, ReservationStatus.RESERVED);
+        
+        when(reservationRepository.findById(resId)).thenReturn(Optional.of(res));
+        // Availability check returns the same reservation
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), eq(DATE), anyList()))
+                .thenReturn(List.of(res));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Reservation updated = parkingService.updateReservation(resId, "A01", DATE, "EMP1", UserRole.EMPLOYEE);
+
+        assertEquals("A01", updated.getParkingSpotLabel());
+    }
 }
+
