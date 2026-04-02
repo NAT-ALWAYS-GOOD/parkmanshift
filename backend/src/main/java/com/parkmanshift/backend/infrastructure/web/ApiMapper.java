@@ -60,6 +60,33 @@ public final class ApiMapper {
         return SpotStatusDto.fromValue(domain.name());
     }
 
+    public static UserDto toDto(User domain) {
+        return toDto(domain, true);
+    }
+
+    public static UserDto toDto(User domain, boolean includeSensitiveInfo) {
+        UserDto dto = new UserDto();
+        dto.setId(domain.getId());
+        dto.setUsername(domain.getUsername());
+        dto.setFullName(domain.getFullName());
+        if (domain.getRole() != null) {
+            dto.setRole(UserDto.RoleEnum.fromValue(domain.getRole().name()));
+        }
+        if (includeSensitiveInfo) {
+            dto.setCheckInCode(domain.getCheckInCode());
+        }
+        return dto;
+    }
+
+    public static CheckInVerificationDto toDto(CheckInVerification domain) {
+        CheckInVerificationDto dto = new CheckInVerificationDto();
+        dto.setUsername(domain.getUsername());
+        dto.setFullName(domain.getFullName());
+        dto.setExistingReservationSpotLabel(domain.getExistingReservationSpotLabel());
+        dto.setConflict(domain.isConflict());
+        return dto;
+    }
+
     public static SpotTypeDto toDto(SpotType domain) {
         return SpotTypeDto.fromValue(domain.name());
     }

@@ -6,6 +6,8 @@ import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.UpdateReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
+import com.parkmanshift.backend.application.port.in.CheckInWithCodeUseCase;
+import com.parkmanshift.backend.domain.model.CheckInVerification;
 import com.parkmanshift.backend.domain.model.DashboardStats;
 import com.parkmanshift.backend.domain.model.Reservation;
 import com.parkmanshift.backend.domain.model.ReservationStatus;
@@ -64,6 +66,9 @@ public class ParkingControllerTest {
 
     @Mock
     private UpdateReservationUseCase updateReservationUseCase;
+
+    @Mock
+    private CheckInWithCodeUseCase checkInWithCodeUseCase;
 
     @Mock
     private Authentication mockAuthentication;
@@ -140,5 +145,26 @@ public class ParkingControllerTest {
                 .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parkingSpotLabel").value("B01"));
+    }
+
+    @Test
+    public void testPublicVerifyCheckIn() throws Exception {
+        CheckInVerification verification = new CheckInVerification("EMP1", "Emp One", null, false);
+        when(checkInWithCodeUseCase.verifyCheckIn("A01", "1234")).thenReturn(verification);
+
+        mockMvc.perform(get("/api/parking/public/check-in/verify")
+                .param("spotLabel", "A01")
+                .param("code", "1234"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("EMP1"))
+                .andExpect(jsonPath("$.conflict").value(false));
+    }
+
+    @Test
+    public void testPublicConfirmCheckIn() throws Exception {
+        mockMvc.perform(post("/api/parking/public/check-in/confirm")
+                .param("spotLabel", "A01")
+                .param("code", "1234"))
+                .andExpect(status().isNoContent());
     }
 }

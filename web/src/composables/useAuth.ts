@@ -1,8 +1,10 @@
 import { ref, computed } from 'vue'
+import { api } from '../services/api'
+import type { User } from '../types'
 
 const TOKEN_KEY = 'parkmanshift_token'
-
 const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
+const userProfile = ref<User | null>(null)
 
 function decodeToken(t: string | null) {
   if (!t) return null
@@ -25,6 +27,21 @@ export function useAuth() {
     return roles.value.includes(r)
   }
 
+  const roleLabel = computed(() => {
+    if (hasRole('SECRETARY')) return 'Secrétaire'
+    if (hasRole('MANAGER')) return 'Manager'
+    return 'Employé'
+  })
+
+  async function fetchProfile() {
+    if (!token.value) return
+    try {
+      userProfile.value = await api.getMe()
+    } catch (e) {
+      console.error('Failed to fetch profile', e)
+    }
+  }
+
   async function login(username: string, password: string): Promise<void> {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -38,14 +55,16 @@ export function useAuth() {
     const data = await res.json()
     token.value = data.token
     localStorage.setItem(TOKEN_KEY, data.token)
+    await fetchProfile()
   }
 
   function logout() {
     token.value = null
+    userProfile.value = null
     localStorage.removeItem(TOKEN_KEY)
   }
 
-  return { isAuthenticated, roles, hasRole, login, logout }
+  return { isAuthenticated, roles, hasRole, roleLabel, userProfile, login, logout, fetchProfile }
 }
 
 export function getToken(): string | null {

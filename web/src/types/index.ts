@@ -37,3 +37,32 @@ export interface DashboardStats {
   electricSpotProportion: number
   totalReservations: number
 }
+
+export type UserRole = 'EMPLOYEE' | 'MANAGER' | 'SECRETARY'
+
+export interface User {
+  id: string
+  username: string
+  fullName?: string
+  role?: UserRole
+  checkInCode: string
+}
+
+export interface UserRegistrationRequest {
+  username: string
+  fullName: string
+  password?: string
+  role: UserRole
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface CheckInVerification {
+  username: string
+  fullName: string
+  existingReservationSpotLabel?: string | null
+  conflict: boolean
+}

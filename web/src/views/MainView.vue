@@ -4,6 +4,8 @@ import MonthCalendar from '../components/MonthCalendar.vue'
 import SpotGrid from '../components/SpotGrid.vue'
 import DrawerPanel from '../components/DrawerPanel.vue'
 import DashboardPanel from '../components/DashboardPanel.vue'
+import UserManagementView from './UserManagementView.vue'
+import ChangePasswordModal from '../components/ChangePasswordModal.vue'
 import { useToast } from '../composables/useToast'
 import { api } from '../services/api'
 import { useAuth } from '../composables/useAuth'
@@ -11,13 +13,17 @@ import type { Reservation, SpotState } from '../types'
 
 const { show: showToast } = useToast()
 
-const { isAuthenticated, hasRole } = useAuth()
+const { isAuthenticated, hasRole, roleLabel, userProfile, fetchProfile } = useAuth()
 const isSecretary = computed(() => hasRole('SECRETARY'))
 const isManager = computed(() => hasRole('MANAGER'))
 
 // ── View toggle ──────────────────────────────────────────────
-type ViewMode = 'calendar' | 'list' | 'dashboard'
+
+// ── View toggle ──────────────────────────────────────────────
+type ViewMode = 'calendar' | 'list' | 'dashboard' | 'account' | 'user-management'
 const viewMode = ref<ViewMode>('calendar')
+
+const showPasswordModal = ref(false)
 
 // ── Reservations ──────────────────────────────────────────────
 const bookings = ref<Reservation[]>([])
@@ -37,8 +43,14 @@ async function loadBookings() {
   }
 }
 
-watch(isAuthenticated, loadBookings)
-onMounted(loadBookings)
+watch(isAuthenticated, () => {
+  loadBookings()
+  fetchProfile()
+})
+onMounted(() => {
+  loadBookings()
+  fetchProfile()
+})
 
 // ── Calendar navigation ───────────────────────────────────────
 const now = new Date()
@@ -120,8 +132,11 @@ watch(targetUsername, (val) => {
   }, 300)
 })
 
-function selectUser(username: string) {
-  targetUsername.value = username
+function selectUser(user: any) {
+  targetUsername.value = user.username
+  // We'll use a temporary ref to show the full name in the input if we want, 
+  // but for now let's just make sure the results show the full name.
+  // Actually, let's keep targetUsername as the source of truth for the input to avoid overcomplicating.
   userResults.value = []
 }
 
@@ -276,26 +291,88 @@ const STATUS_LABEL: Record<string, string> = {
             :class="['toggle-btn', { 'toggle-btn--active': viewMode === 'calendar' }]"
             @click="viewMode = 'calendar'"
           >
-            📅 Calendar
+            Calendar
           </button>
           <button
             :class="['toggle-btn', { 'toggle-btn--active': viewMode === 'list' }]"
             @click="viewMode = 'list'"
           >
-            📋 List
+            List
           </button>
           <button
             v-if="isManager || isSecretary"
             :class="['toggle-btn', { 'toggle-btn--active': viewMode === 'dashboard' }]"
             @click="viewMode = 'dashboard'"
           >
-            📊 Dashboard
+            Dashboard
+          </button>
+          <button
+            v-if="isSecretary"
+            :class="['toggle-btn', { 'toggle-btn--active': viewMode === 'user-management' }]"
+            @click="viewMode = 'user-management'"
+          >
+            Users
+          </button>
+          <button
+            :class="['toggle-btn', { 'toggle-btn--active': viewMode === 'account' }]"
+            @click="viewMode = 'account'"
+          >
+            Account
           </button>
         </div>
       </div>
 
+      <!-- ═══ USER MANAGEMENT VIEW ═══ -->
+      <div v-if="viewMode === 'user-management'" class="user-mgmt-section">
+        <UserManagementView />
+      </div>
+
       <!-- ═══ DASHBOARD VIEW ═══ -->
       <DashboardPanel v-if="viewMode === 'dashboard'" />
+
+      <!-- ═══ MY ACCOUNT VIEW ═══ -->
+      <div v-if="viewMode === 'account'" class="account-section">
+        <div class="account-card glass-card">
+          <div class="account-hero">
+            <div class="avatar-large">{{ userProfile?.username?.charAt(0).toUpperCase() }}</div>
+            <div class="account-main-info">
+              <h2>{{ userProfile?.fullName || userProfile?.username }}</h2>
+              <div class="account-badges">
+                <span class="badge" :class="userProfile?.role?.toLowerCase()">{{ roleLabel }}</span>
+                <span class="username-tag">@{{ userProfile?.username }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="account-content">
+            <div class="info-grid">
+              <div class="info-card">
+                <span class="info-label">Code de Check-in</span>
+                <div class="code-display">
+                  <span v-for="digit in (userProfile?.checkInCode || '----').split('')" :key="digit" class="digit-box">
+                    {{ digit }}
+                  </span>
+                </div>
+                <p class="info-hint">Utilisez ce code à 4 chiffres pour confirmer votre présence lors du scan du QR code sur votre place.</p>
+              </div>
+
+              <div class="info-card actions-card">
+                <span class="info-label">Sécurité</span>
+                <p class="info-hint">Protégez votre compte en changeant régulièrement votre mot de passe.</p>
+                <button @click="showPasswordModal = true" class="btn btn--outline password-btn">
+                  Modifier le mot de passe
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ChangePasswordModal 
+        :show="showPasswordModal" 
+        @close="showPasswordModal = false"
+        @success="showPasswordModal = false; showToast('Mot de passe mis à jour !')"
+      />
 
       <!-- ═══ CALENDAR VIEW ═══ -->
       <div v-if="viewMode === 'calendar'" class="cal-section">
@@ -446,7 +523,7 @@ const STATUS_LABEL: Record<string, string> = {
             <input
               v-model="targetUsername"
               class="for-other-input"
-              placeholder="Start typing username..."
+              placeholder="Search by full name..."
               autocomplete="off"
             />
             <div v-if="userResults.length" class="user-dropdown">
@@ -454,9 +531,12 @@ const STATUS_LABEL: Record<string, string> = {
                 v-for="u in userResults"
                 :key="u.id"
                 class="user-item"
-                @click="selectUser(u.username)"
+                @click="selectUser(u)"
               >
-                {{ u.username }}
+                <div class="user-info">
+                  <span class="user-fullname">{{ u.fullName || u.username }}</span>
+                  <span class="user-username">@{{ u.username }}</span>
+                </div>
               </div>
             </div>
             <div v-else-if="searchingUsers" class="user-dropdown">
@@ -533,39 +613,47 @@ const STATUS_LABEL: Record<string, string> = {
 
 /* ── Toggle ── */
 .toolbar {
-  justify-self: end;
-  margin-bottom: 20px;
+  width: 100%;
+  margin-bottom: 2rem;
 }
 
 .toggle-group {
   display: flex;
   background: var(--code-bg);
-  border-radius: 8px;
-  padding: 3px;
-  gap: 2px;
-  width: fit-content;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  gap: 0.5rem;
+  width: 100%;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-btn {
-  padding: 6px 16px;
+  flex: 1;
+  padding: 0.85rem 1.5rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 0.75rem;
   cursor: pointer;
-  font-size: 14px;
-  background: none;
+  font-size: 1rem;
+  font-weight: 500;
+  background: transparent;
   color: var(--text);
-  transition: background 0.15s, color 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .toggle-btn--active {
   background: var(--bg);
-  color: var(--text-h);
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .toggle-btn:not(.toggle-btn--active):hover {
-  background: var(--accent-bg);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-h);
 }
 
@@ -611,6 +699,127 @@ const STATUS_LABEL: Record<string, string> = {
   flex-direction: column;
   gap: 24px;
 }
+/* ── Account Section ── */
+.account-section {
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.account-card {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 2rem;
+}
+
+.account-hero {
+  background: linear-gradient(135deg, var(--accent) 0%, #6d28d9 100%);
+  padding: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  color: white;
+}
+
+.avatar-large {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 800;
+  backdrop-filter: blur(10px);
+}
+
+.account-main-info h2 {
+  font-size: 2.5rem;
+  margin: 0;
+  color: white;
+  letter-spacing: -0.02em;
+}
+
+.account-badges {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+
+.username-tag {
+  font-family: var(--mono);
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+.account-content {
+  padding: 3rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.info-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text);
+  letter-spacing: 0.1em;
+}
+
+.code-display {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.digit-box {
+  width: 48px;
+  height: 60px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: var(--mono);
+  color: var(--accent);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-hint {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.actions-card {
+  justify-content: space-between;
+}
+
+.password-btn {
+  width: 100%;
+  margin-top: 1rem;
+}
+
 .drawer-section {
   display: flex;
   flex-direction: column;
@@ -717,6 +926,22 @@ const STATUS_LABEL: Record<string, string> = {
 .user-item:hover {
   background: var(--accent-bg);
   color: var(--accent);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-fullname {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-username {
+  font-size: 11px;
+  opacity: 0.6;
+  font-family: var(--mono);
 }
 
 .user-item-info {
@@ -876,47 +1101,6 @@ const STATUS_LABEL: Record<string, string> = {
   letter-spacing: 0.04em;
 }
 
-
-/* ── Buttons ── */
-.btn {
-  padding: 6px 13px;
-  border-radius: 6px;
-  border: none;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.12s;
-}
-
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.btn--primary {
-  background: var(--accent);
-  color: #fff;
-  padding: 7px 16px;
-}
-
-.confirm-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn--secondary { background: var(--code-bg); color: var(--text-h); }
-.btn--outline { background: none; border: 1px solid var(--border); color: var(--text-h); }
-
-.btn--primary:not(:disabled):hover {
-  box-shadow: 0 2px 10px rgba(170, 59, 255, 0.35);
-}
-
-.btn--checkin { background: #dcfce7; color: #15803d; }
-.btn--checkin:hover { background: #bbf7d0; }
-.btn--cancel  { background: #fee2e2; color: #b91c1c; }
-.btn--cancel:hover  { background: #fecaca; }
-
-@media (prefers-color-scheme: dark) {
-  .btn--checkin { background: #14532d; color: #86efac; }
-  .btn--cancel  { background: #450a0a; color: #fca5a5; }
-}
 
 /* ── Skeletons ── */
 .cal-skeleton {

@@ -7,5 +7,6 @@ import java.util.UUID;
 
 public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID> {
     Optional<UserEntity> findByUsername(String username);
-    List<UserEntity> findByUsernameContainingIgnoreCase(String query);
+    List<UserEntity> findByFullNameContainingIgnoreCase(String query);
+    Optional<UserEntity> findByCheckInCode(String checkInCode);
 }

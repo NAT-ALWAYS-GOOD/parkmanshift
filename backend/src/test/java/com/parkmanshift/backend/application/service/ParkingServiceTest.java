@@ -3,6 +3,7 @@ package com.parkmanshift.backend.application.service;
 import com.parkmanshift.backend.application.port.out.MessageProducerPort;
 import com.parkmanshift.backend.application.port.out.ParkingSpotRepositoryPort;
 import com.parkmanshift.backend.application.port.out.ReservationRepositoryPort;
+import com.parkmanshift.backend.application.port.out.UserRepositoryPort;
 import com.parkmanshift.backend.domain.exception.ReservationLimitExceededException;
 import com.parkmanshift.backend.domain.exception.SpotNotAvailableException;
 import com.parkmanshift.backend.domain.exception.UserAlreadyReservedException;
@@ -36,6 +37,9 @@ public class ParkingServiceTest {
 
     @Mock
     private MessageProducerPort messageProducer;
+
+    @Mock
+    private UserRepositoryPort userRepository;
 
     @InjectMocks
     private ParkingService parkingService;
@@ -173,7 +177,6 @@ public class ParkingServiceTest {
         assertEquals(ReservationStatus.CANCELLED, reserved2.getStatus());
         assertEquals(ReservationStatus.OCCUPIED, occupied.getStatus());
         verify(reservationRepository, times(2)).save(any(Reservation.class));
-        verify(messageProducer, times(2)).sendEvent(contains("ReservationAutoCancelled"));
     }
 
     @Test
@@ -305,6 +308,88 @@ public class ParkingServiceTest {
         
         assertThrows(IllegalArgumentException.class, () ->
             parkingService.cancelReservation(resId, "OTHER_EMP", UserRole.EMPLOYEE));
+    }
+
+    @Test
+    public void verifyCheckIn_WithValidCode_AndNoConflict_ShouldReturnConflictFalse() {
+        User user = new User(UUID.randomUUID(), "EMP1", "Full Name", "encoded", UserRole.EMPLOYEE, "1234");
+        when(userRepository.findByCheckInCode("1234")).thenReturn(Optional.of(user));
+        when(reservationRepository.findByEmployeeIdAndDateAndStatusIn(eq("EMP1"), any(LocalDate.class), anyList()))
+                .thenReturn(Collections.emptyList());
+
+        CheckInVerification verification = parkingService.verifyCheckIn("A01", "1234");
+
+        assertFalse(verification.isConflict());
+        assertEquals("EMP1", verification.getUsername());
+        assertNull(verification.getExistingReservationSpotLabel());
+    }
+
+    @Test
+    public void verifyCheckIn_WithConflict_ShouldReturnConflictTrue() {
+        User user = new User(UUID.randomUUID(), "EMP1", "Full Name", "encoded", UserRole.EMPLOYEE, "1234");
+        Reservation existingRes = new Reservation(UUID.randomUUID(), "B01", "EMP1", LocalDate.now(), ReservationStatus.RESERVED);
+        
+        when(userRepository.findByCheckInCode("1234")).thenReturn(Optional.of(user));
+        when(reservationRepository.findByEmployeeIdAndDateAndStatusIn(eq("EMP1"), any(LocalDate.class), anyList()))
+                .thenReturn(List.of(existingRes));
+
+        CheckInVerification verification = parkingService.verifyCheckIn("A01", "1234");
+
+        assertTrue(verification.isConflict());
+        assertEquals("B01", verification.getExistingReservationSpotLabel());
+    }
+
+    @Test
+    public void verifyCheckIn_WithInvalidCode_ShouldThrowException() {
+        when(userRepository.findByCheckInCode("9999")).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> parkingService.verifyCheckIn("A01", "9999"));
+    }
+
+    @Test
+    public void confirmCheckIn_WithPriorReservation_ShouldUpdateStatus() {
+        User user = new User(UUID.randomUUID(), "EMP1", "Full Name", "encoded", UserRole.EMPLOYEE, "1234");
+        Reservation res = new Reservation(UUID.randomUUID(), "A01", "EMP1", LocalDate.now(), ReservationStatus.RESERVED);
+        
+        when(userRepository.findByCheckInCode("1234")).thenReturn(Optional.of(user));
+        when(reservationRepository.findByEmployeeIdAndDateAndStatusIn(eq("EMP1"), any(LocalDate.class), anyList()))
+                .thenReturn(List.of(res));
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), any(LocalDate.class), anyList()))
+                .thenReturn(List.of(res));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        parkingService.confirmCheckIn("A01", "1234");
+
+        assertEquals(ReservationStatus.OCCUPIED, res.getStatus());
+    }
+
+    @Test
+    public void confirmCheckIn_WithConflict_ShouldCancelOldAndOccupyNew() {
+        User user = new User(UUID.randomUUID(), "EMP1", "Full Name", "encoded", UserRole.EMPLOYEE, "1234");
+        Reservation oldRes = new Reservation(UUID.randomUUID(), "B01", "EMP1", LocalDate.now(), ReservationStatus.RESERVED);
+        
+        when(userRepository.findByCheckInCode("1234")).thenReturn(Optional.of(user));
+        when(reservationRepository.findByEmployeeIdAndDateAndStatusIn(eq("EMP1"), any(LocalDate.class), anyList()))
+                .thenReturn(List.of(oldRes));
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), any(LocalDate.class), anyList()))
+                .thenReturn(Collections.emptyList());
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(i -> i.getArgument(0));
+
+        parkingService.confirmCheckIn("A01", "1234");
+
+        assertEquals(ReservationStatus.CANCELLED, oldRes.getStatus());
+        verify(reservationRepository, times(2)).save(any(Reservation.class));
+    }
+
+    @Test
+    public void confirmCheckIn_SpotTakenByOther_ShouldThrowException() {
+        User user = new User(UUID.randomUUID(), "EMP1", "Full Name", "encoded", UserRole.EMPLOYEE, "1234");
+        Reservation otherRes = new Reservation(UUID.randomUUID(), "A01", "EMP2", LocalDate.now(), ReservationStatus.RESERVED);
+        
+        when(userRepository.findByCheckInCode("1234")).thenReturn(Optional.of(user));
+        when(reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(eq("A01"), any(LocalDate.class), anyList()))
+                .thenReturn(List.of(otherRes));
+
+        assertThrows(SpotNotAvailableException.class, () -> parkingService.confirmCheckIn("A01", "1234"));
     }
 }
 

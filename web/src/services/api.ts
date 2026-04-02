@@ -1,4 +1,4 @@
-import type { Reservation, ReserveRequest, SpotState, DashboardStats } from '../types'
+import type { Reservation, ReserveRequest, SpotState, DashboardStats, User, CheckInVerification, UserRegistrationRequest, ChangePasswordRequest } from '../types'
 import { getToken } from '../composables/useAuth'
 
 function authHeaders(): HeadersInit {
@@ -15,10 +15,18 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     },
   })
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText)
-    throw new Error(text || `HTTP ${res.status}`)
+    let message = res.statusText
+    try {
+      const body = await res.json()
+      message = body.error || body.message || JSON.stringify(body)
+    } catch {
+      message = await res.text().catch(() => res.statusText)
+    }
+    throw new Error(message || `HTTP ${res.status}`)
   }
-  if (res.status === 204) return undefined as T
+  if (res.status === 201 || res.status === 204) {
+    return undefined as T
+  }
   return res.json()
 }
 
@@ -78,5 +86,44 @@ export const api = {
   // GET /api/users/search
   searchUsers(query: string): Promise<any[]> {
     return request(`/api/users/search?query=${encodeURIComponent(query)}`)
+  },
+
+  // GET /api/users/me
+  getMe(): Promise<User> {
+    return request('/api/users/me')
+  },
+
+  // POST /api/auth/register-employee
+  registerEmployee(body: UserRegistrationRequest): Promise<void> {
+    return request('/api/auth/register-employee', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  },
+
+  // POST /api/users/change-password
+  changePassword(body: ChangePasswordRequest): Promise<void> {
+    return request('/api/users/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  },
+
+  // GET /api/parking/public/check-in/verify
+  verifyPublicCheckIn(spotLabel: string, code: string): Promise<CheckInVerification> {
+    return request(`/api/parking/public/check-in/verify?spotLabel=${encodeURIComponent(spotLabel)}&code=${encodeURIComponent(code)}`)
+  },
+
+  getSpotStatus(label: string): Promise<string> {
+    return request(`/api/parking/public/spots/${encodeURIComponent(label)}/status`)
+  },
+
+  // POST /api/parking/public/check-in/confirm
+  confirmPublicCheckIn(spotLabel: string, code: string): Promise<void> {
+    return request(`/api/parking/public/check-in/confirm?spotLabel=${encodeURIComponent(spotLabel)}&code=${encodeURIComponent(code)}`, {
+      method: 'POST',
+    })
   },
 }

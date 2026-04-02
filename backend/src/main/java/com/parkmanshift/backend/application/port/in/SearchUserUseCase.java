@@ -5,4 +5,5 @@ import java.util.List;
 
 public interface SearchUserUseCase {
     List<User> searchUsers(String query);
+    User findByUsername(String username);
 }

@@ -8,6 +8,7 @@ import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
 import com.parkmanshift.backend.application.port.in.UpdateReservationUseCase;
 import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
 import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
+import com.parkmanshift.backend.application.port.in.CheckInWithCodeUseCase;
 import com.parkmanshift.api.model.DashboardStatsDto;
 import com.parkmanshift.backend.domain.model.Reservation;
 import com.parkmanshift.backend.domain.model.UserRole;
@@ -33,14 +34,48 @@ public class ParkingController {
     private final GetReservationHistoryUseCase getReservationHistoryUseCase;
     private final GetDashboardStatsUseCase getDashboardStatsUseCase;
     private final UpdateReservationUseCase updateReservationUseCase;
+    private final CheckInWithCodeUseCase checkInWithCodeUseCase;
 
-    public ParkingController(ViewParkingStateUseCase viewParkingStateUseCase, ReserveSpotUseCase reserveSpotUseCase, ManageReservationUseCase manageReservationUseCase, GetReservationHistoryUseCase getReservationHistoryUseCase, GetDashboardStatsUseCase getDashboardStatsUseCase, UpdateReservationUseCase updateReservationUseCase) {
+    public ParkingController(
+            @org.springframework.beans.factory.annotation.Qualifier("viewParkingStateUseCase") ViewParkingStateUseCase viewParkingStateUseCase,
+            @org.springframework.beans.factory.annotation.Qualifier("reserveSpotUseCase") ReserveSpotUseCase reserveSpotUseCase,
+            @org.springframework.beans.factory.annotation.Qualifier("manageReservationUseCase") ManageReservationUseCase manageReservationUseCase,
+            @org.springframework.beans.factory.annotation.Qualifier("getReservationHistoryUseCase") GetReservationHistoryUseCase getReservationHistoryUseCase,
+            @org.springframework.beans.factory.annotation.Qualifier("getDashboardStatsUseCase") GetDashboardStatsUseCase getDashboardStatsUseCase,
+            @org.springframework.beans.factory.annotation.Qualifier("updateReservationUseCase") UpdateReservationUseCase updateReservationUseCase,
+            @org.springframework.beans.factory.annotation.Qualifier("checkInWithCodeUseCase") CheckInWithCodeUseCase checkInWithCodeUseCase) {
         this.viewParkingStateUseCase = viewParkingStateUseCase;
         this.reserveSpotUseCase = reserveSpotUseCase;
         this.manageReservationUseCase = manageReservationUseCase;
         this.getReservationHistoryUseCase = getReservationHistoryUseCase;
         this.getDashboardStatsUseCase = getDashboardStatsUseCase;
         this.updateReservationUseCase = updateReservationUseCase;
+        this.checkInWithCodeUseCase = checkInWithCodeUseCase;
+    }
+
+    @GetMapping("/public/check-in/verify")
+    public com.parkmanshift.api.model.CheckInVerificationDto verifyCheckIn(
+            @RequestParam String spotLabel,
+            @RequestParam String code) {
+        return ApiMapper.toDto(checkInWithCodeUseCase.verifyCheckIn(spotLabel, code));
+    }
+
+    @GetMapping("/public/spots/{label}/status")
+    public ResponseEntity<com.parkmanshift.api.model.SpotStatusDto> getSpotStatus(@PathVariable String label) {
+        return viewParkingStateUseCase.getParkingStateForDate(LocalDate.now())
+                .stream()
+                .filter(s -> s.getSpot().getLabel().equals(label))
+                .findFirst()
+                .map(s -> ResponseEntity.ok(ApiMapper.toDto(s.getStatus())))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/public/check-in/confirm")
+    public ResponseEntity<Void> confirmCheckIn(
+            @RequestParam String spotLabel,
+            @RequestParam String code) {
+        checkInWithCodeUseCase.confirmCheckIn(spotLabel, code);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/dashboard")
@@ -110,7 +145,7 @@ public class ParkingController {
         String username = authentication.getName();
         UserRole role = getUserRole(authentication);
         manageReservationUseCase.checkIn(id, username, role);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/reservations/{id}")
@@ -120,7 +155,7 @@ public class ParkingController {
         String username = authentication.getName();
         UserRole role = getUserRole(authentication);
         manageReservationUseCase.cancelReservation(id, username, role);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/reservations/{id}")

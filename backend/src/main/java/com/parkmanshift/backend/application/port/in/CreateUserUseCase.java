@@ -4,5 +4,5 @@ import com.parkmanshift.backend.domain.model.User;
 import com.parkmanshift.backend.domain.model.UserRole;
 
 public interface CreateUserUseCase {
-    User createUser(String username, String password, UserRole role);
+    User createUser(String username, String fullName, String password, UserRole role);
 }

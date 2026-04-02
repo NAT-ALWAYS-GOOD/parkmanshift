@@ -1,15 +1,10 @@
 package com.parkmanshift.backend.application.service;
 
-import com.parkmanshift.backend.application.port.in.CancelUnconfirmedReservationsUseCase;
-import com.parkmanshift.backend.application.port.in.GetDashboardStatsUseCase;
-import com.parkmanshift.backend.application.port.in.GetReservationHistoryUseCase;
-import com.parkmanshift.backend.application.port.in.ManageReservationUseCase;
-import com.parkmanshift.backend.application.port.in.ReserveSpotUseCase;
-import com.parkmanshift.backend.application.port.in.UpdateReservationUseCase;
-import com.parkmanshift.backend.application.port.in.ViewParkingStateUseCase;
+import com.parkmanshift.backend.application.port.in.*;
 import com.parkmanshift.backend.application.port.out.MessageProducerPort;
 import com.parkmanshift.backend.application.port.out.ParkingSpotRepositoryPort;
 import com.parkmanshift.backend.application.port.out.ReservationRepositoryPort;
+import com.parkmanshift.backend.application.port.out.UserRepositoryPort;
 import com.parkmanshift.backend.domain.exception.ReservationLimitExceededException;
 import com.parkmanshift.backend.domain.exception.ReservationNotFoundException;
 import com.parkmanshift.backend.domain.exception.SpotNotAvailableException;
@@ -24,16 +19,84 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase, CancelUnconfirmedReservationsUseCase, UpdateReservationUseCase {
+public class ParkingService implements ReserveSpotUseCase, ManageReservationUseCase, ViewParkingStateUseCase, GetReservationHistoryUseCase, GetDashboardStatsUseCase, CancelUnconfirmedReservationsUseCase, UpdateReservationUseCase, CheckInWithCodeUseCase {
 
     private final ParkingSpotRepositoryPort spotRepository;
     private final ReservationRepositoryPort reservationRepository;
     private final MessageProducerPort messageProducer;
+    private final UserRepositoryPort userRepository;
 
-    public ParkingService(ParkingSpotRepositoryPort spotRepository, ReservationRepositoryPort reservationRepository, MessageProducerPort messageProducer) {
+    public ParkingService(ParkingSpotRepositoryPort spotRepository, ReservationRepositoryPort reservationRepository, UserRepositoryPort userRepository, MessageProducerPort messageProducer) {
         this.spotRepository = spotRepository;
         this.reservationRepository = reservationRepository;
+        this.userRepository = userRepository;
         this.messageProducer = messageProducer;
+    }
+
+    @Override
+    public CheckInVerification verifyCheckIn(String spotLabel, String code) {
+        User user = userRepository.findByCheckInCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid check-in code"));
+
+        LocalDate today = LocalDate.now();
+        List<Reservation> todayReservations = reservationRepository.findByEmployeeIdAndDateAndStatusIn(
+                user.getUsername(), today, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+        );
+
+        Optional<Reservation> existing = todayReservations.stream()
+                .filter(r -> !r.getParkingSpotLabel().equals(spotLabel))
+                .findFirst();
+
+        return new CheckInVerification(
+                user.getUsername(),
+                user.getFullName(),
+                existing.map(Reservation::getParkingSpotLabel).orElse(null),
+                existing.isPresent()
+        );
+    }
+
+    @Override
+    public void confirmCheckIn(String spotLabel, String code) {
+        User user = userRepository.findByCheckInCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid check-in code"));
+
+        LocalDate today = LocalDate.now();
+        
+        // 1. Cancel existing reservations for today on other spots
+        List<Reservation> todayReservations = reservationRepository.findByEmployeeIdAndDateAndStatusIn(
+                user.getUsername(), today, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+        );
+
+        for (Reservation r : todayReservations) {
+            if (!r.getParkingSpotLabel().equals(spotLabel)) {
+                r.setStatus(ReservationStatus.CANCELLED);
+                reservationRepository.save(r);
+            }
+        }
+
+        // 2. Occupy the new spot
+        // Check if there is already a reservation for this spot today
+        List<Reservation> spotReservations = reservationRepository.findByParkingSpotLabelAndDateAndStatusIn(
+                spotLabel, today, List.of(ReservationStatus.RESERVED, ReservationStatus.OCCUPIED)
+        );
+
+        Optional<Reservation> myRes = spotReservations.stream()
+                .filter(r -> r.getEmployeeId().equals(user.getUsername()))
+                .findFirst();
+
+        if (myRes.isPresent()) {
+            Reservation r = myRes.get();
+            r.setStatus(ReservationStatus.OCCUPIED);
+            reservationRepository.save(r);
+        } else {
+            // Check if someone else has it
+            if (!spotReservations.isEmpty()) {
+                throw new SpotNotAvailableException("Spot is already occupied or reserved by someone else");
+            }
+            // Create a new OCCUPIED reservation (spontaneous check-in)
+            Reservation newRes = new Reservation(UUID.randomUUID(), spotLabel, user.getUsername(), today, ReservationStatus.OCCUPIED);
+            reservationRepository.save(newRes);
+        }
     }
 
     @Override
@@ -210,7 +273,6 @@ public class ParkingService implements ReserveSpotUseCase, ManageReservationUseC
             if (res.getStatus() == ReservationStatus.RESERVED) {
                 res.setStatus(ReservationStatus.CANCELLED);
                 reservationRepository.save(res);
-                messageProducer.sendEvent("{\"type\": \"ReservationAutoCancelled\", \"id\": \"" + res.getId() + "\"}");
                 cancelledCount++;
             }
         }

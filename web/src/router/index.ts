@@ -7,11 +7,12 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', component: LoginView, meta: { public: true } },
+    { path: '/check-in/:spotLabel', component: () => import('../views/CheckInView.vue'), meta: { public: true } },
     { path: '/:pathMatch(.*)*', component: MainView },
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach((to: any) => {
   const { isAuthenticated } = useAuth()
   if (!to.meta.public && !isAuthenticated.value) {
     return '/login'

@@ -30,6 +30,11 @@ public class UseCaseConfig {
     }
 
     @Bean
+    public ChangePasswordUseCase changePasswordUseCase(UserService userService) {
+        return userService;
+    }
+
+    @Bean
     public LogMessageUseCase logMessageUseCase(
             SkeletonLogRepositoryPort repository,
             MessageProducerPort messageProducer) {
@@ -40,7 +45,25 @@ public class UseCaseConfig {
     public ParkingService parkingService(
             ParkingSpotRepositoryPort spotRepository,
             ReservationRepositoryPort reservationRepository,
+            UserRepositoryPort userRepository,
             MessageProducerPort messageProducer) {
-        return new ParkingService(spotRepository, reservationRepository, messageProducer);
+        return new ParkingService(spotRepository, reservationRepository, userRepository, messageProducer);
     }
+
+    @Bean
+    public ReserveSpotUseCase reserveSpotUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public ManageReservationUseCase manageReservationUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public ViewParkingStateUseCase viewParkingStateUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public GetReservationHistoryUseCase getReservationHistoryUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public GetDashboardStatsUseCase getDashboardStatsUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public CancelUnconfirmedReservationsUseCase cancelUnconfirmedReservationsUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public UpdateReservationUseCase updateReservationUseCase(ParkingService parkingService) { return parkingService; }
+    @Bean
+    public CheckInWithCodeUseCase checkInWithCodeUseCase(ParkingService parkingService) { return parkingService; }
 }

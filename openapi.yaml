@@ -99,6 +99,31 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserDto'
+  /api/users/change-password:
+    post:
+      tags:
+        - auth
+      summary: Changer son mot de passe
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        '200':
+          description: Mot de passe changé avec succès
+        '400':
+          description: Mot de passe actuel invalide
   /api/parking/state:
     get:
       tags:
@@ -224,6 +249,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationDto'
+  /api/parking/public/check-in/verify:
+    get:
+      security: []
+      tags:
+        - parking
+      summary: Vérifier un code de check-in pour une place
+      operationId: verifyCheckIn
+      parameters:
+        - name: spotLabel
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckInVerificationDto'
+  /api/parking/public/check-in/confirm:
+    post:
+      security: []
+      tags:
+        - parking
+      summary: Confirmer le check-in avec le code
+      operationId: confirmCheckIn
+      parameters:
+        - name: spotLabel
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check-in confirmé
 
   /api/parking/dashboard:
     get:
@@ -319,9 +390,12 @@ components:
       type: object
       required:
         - username
+        - fullName
         - password
       properties:
         username:
+          type: string
+        fullName:
           type: string
         password:
           type: string
@@ -374,3 +448,23 @@ components:
           format: uuid
         username:
           type: string
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [EMPLOYEE, MANAGER, SECRETARY]
+        checkInCode:
+          type: string
+          pattern: '^[0-9]{4}$'
+    CheckInVerificationDto:
+      type: object
+      properties:
+        username:
+          type: string
+        fullName:
+          type: string
+        existingReservationSpotLabel:
+          type: string
+          nullable: true
+        conflict:
+          type: boolean

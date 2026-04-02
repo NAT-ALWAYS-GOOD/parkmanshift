@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/hello").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers("/api/parking/public/**").permitAll()
                         .requestMatchers("/api/auth/register-employee").hasRole("SECRETARY")
                         .requestMatchers("/api/users/search").hasRole("SECRETARY")
                         .requestMatchers("/api/parking/**").authenticated()

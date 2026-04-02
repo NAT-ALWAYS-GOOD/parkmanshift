@@ -22,21 +22,43 @@ public class DataInitializer {
 
     @PostConstruct
     public void init() {
-        ensureUserExists("employee1", "password", UserRole.EMPLOYEE);
-        ensureUserExists("manager1", "password", UserRole.MANAGER);
-        ensureUserExists("secretary1", "password", UserRole.SECRETARY);
+        if (userRepository.findByUsername("admin").isEmpty()) {
+            String password = generateRandomPassword(12);
+            String checkInCode = generateRandomCheckInCode();
+            User admin = new User(
+                    UUID.randomUUID(),
+                    "admin",
+                    "Admin ADMIN",
+                    passwordEncoder.encode(password),
+                    UserRole.SECRETARY,
+                    checkInCode
+            );
+            userRepository.save(admin);
+
+            System.out.println("###################################################");
+            System.out.println("#                                                 #");
+            System.out.println("#  INITIAL ADMIN CREATED                          #");
+            System.out.println("#  Username: admin                                #");
+            System.out.println("#  Password: " + password + "                     #");
+            System.out.println("#  Check-in Code: " + checkInCode + "                   #");
+            System.out.println("#  PLEASE CHANGE THIS PASSWORD AFTER FIRST LOGIN  #");
+            System.out.println("#                                                 #");
+            System.out.println("###################################################");
+        }
     }
 
-    private void ensureUserExists(String username, String password, UserRole role) {
-        if (userRepository.findByUsername(username).isEmpty()) {
-            User user = new User(
-                    UUID.randomUUID(),
-                    username,
-                    passwordEncoder.encode(password),
-                    role
-            );
-            userRepository.save(user);
-            System.out.println("DEBUG: Created default user: " + username);
+    private String generateRandomPassword(int length) {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
         }
+        return sb.toString();
+    }
+
+    private String generateRandomCheckInCode() {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        return String.format("%04d", random.nextInt(10000));
     }
 }

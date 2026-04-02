@@ -24,7 +24,11 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final CreateUserUseCase createUserUseCase;
 
-    public AuthController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtUtils jwtUtils, CreateUserUseCase createUserUseCase) {
+    public AuthController(
+            AuthenticationManager authenticationManager,
+            UserDetailsService userDetailsService,
+            JwtUtils jwtUtils,
+            @org.springframework.beans.factory.annotation.Qualifier("createUserUseCase") CreateUserUseCase createUserUseCase) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
@@ -48,6 +52,7 @@ public class AuthController {
     public ResponseEntity<Void> registerEmployee(@RequestBody UserRegistrationDto registrationDto) {
         createUserUseCase.createUser(
                 registrationDto.getUsername(),
+                registrationDto.getFullName(),
                 registrationDto.getPassword(),
                 UserRole.valueOf(registrationDto.getRole().getValue())
         );
